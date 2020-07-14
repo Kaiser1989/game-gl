@@ -5,7 +5,7 @@
 
 mod context;
 
-use context::{ GameLoop, Runner, DeviceContext };
+use context::{ GameLoop, Runner, gl, Gl, InputEvent};
 
 //////////////////////////////////////////////////
 // Entry
@@ -36,27 +36,35 @@ impl Runner for ExampleRunner {
         println!("resume");
     }
 
-    fn input(&mut self) {
-        println!("input");
+    fn input(&mut self, input_events: &[InputEvent]) {
+        input_events.iter().for_each(|input_event| {
+            match input_event {
+                _ => println!("input: {:?}", input_event)
+            }
+        });
     }
 
-    fn update(&mut self, elapsed_time: f32) {
+    fn update(&mut self, _elapsed_time: f32) {
         //println!("update (time: {}", elapsed_time);
     }
 
-    fn render(&mut self, _device_ctx: &mut DeviceContext) {
-        println!("render");
+    fn render(&mut self, gl: &Gl) {
+        unsafe { 
+            gl.ClearColor(1.0, 0.0, 0.0, 1.0); 
+            gl.ClearDepthf(1.0);
+            gl.Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
     }
 
-    fn create_device(&mut self, _device_ctx: &mut DeviceContext) {
+    fn create_device(&mut self, _gl: &Gl) {
         println!("create_device");
     }
 
-    fn resize_device(&mut self, _device_ctx: &mut DeviceContext) {
-        println!("resize_device");
+    fn destroy_device(&mut self, _gl: &Gl) {
+        println!("destroy_device");
     }
 
-    fn destroy_device(&mut self, _device_ctx: &mut DeviceContext) {
-        println!("destroy_device");
+    fn resize_device(&mut self, _gl: &Gl, _width: u32, _height: u32) {
+        println!("resize_device");
     }
 }
