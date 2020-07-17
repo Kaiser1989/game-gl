@@ -72,13 +72,13 @@ Pause tells you that your app has been paused by the OS.
 ### resume()
 Resume tells you that your app has been resumed by the OS.
 ### create_device(gl: &GL)
-CreateDevice funtion is called whenever a render context is created. This is the place to initialize your constantly used graphics resources like textures, buffers and other OpenGL stuff. 
+CreateDevice funtion is called whenever a render context is created. This is the place to initialize your constantly used graphics resources like textures, buffers and other OpenGL stuff. <br>
 ATTENTION: Desktop apps will create the context right after calling the `init` function. The context will be available for the complete lifetime of your app. Android does some special context handling. Current issues from Glutin and Winit mention that render context is only available between Android's `resumed` and `suspended` methods. Sending your app to the background is destroying the context, resuming it will create one again. This is handled internally for your. If you have massive loads of graphics resources, this can result to a bad user experience as every resource needs to be uploaded to the OpenGL context again.
 ### destroy_device(gl: &GL)
-DestroyDevice function is called whenever a render context is destroyed. This is the place to release all your graphics resources.
+DestroyDevice function is called whenever a render context is destroyed. This is the place to release all your graphics resources. <br>
 ATTENTION: Desktop apps will destroy the context right before calling the `cleanup` function. As already mentioned, Android destroyes your context when sending the app to background and recreates it (create_device is called) when app is brought back to foreground again.
 ### resize_device(gl: &GL)
-ResizeDevice function is called whenever a render context changes its size (resolution). This is the place to adjust your resolution dependen resources, e.g. an additional framebuffer. This funtion is also called once right after create_device to give the resolution of your window.
+ResizeDevice function is called whenever a render context changes its size (resolution). This is the place to adjust your resolution dependend resources, e.g. an additional framebuffer. This funtion is also called once right after create_device to give the resolution of your window.
 
 <br>
 
@@ -93,10 +93,12 @@ INSTEAD USE: `cargo install --git="https://github.com/Kaiser1989/android-ndk-rs"
 <br>
 
 ## Dependencies
-This project is based on bug fixed forkes of:
+This project is based on bug fixed forks of:
 * glutin 0.24.1
 * winit 0.22.2
 * android-ndk-rs 0.1.0
+
+and the original crate:
 * gl_generator 0.14.0
 
 All these projects were forked to my github. Therefore only the project only consists of git dependencies to my local git repositiories.
@@ -120,6 +122,8 @@ where all sub dependencies are replaces to my bug fixed forks. There is no depen
 
 ## Example
 A running example of this game loop crate can be found at: https://github.com/Kaiser1989/rust-android-example. This example creates a simple game loop rendering a red window. It's tests for windows and android.
+
+<br>
 
 ## Special Thanks
 Special thanks go to @Katyo who started fixing the glutin crate to make it build and of course to the developer of glutin, winit and android-ndk-rs. They do a good job. And the working solution is so close. When they got their issues fixed, this project here is no longer needed.
