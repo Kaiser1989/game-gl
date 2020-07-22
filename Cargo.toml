@@ -7,8 +7,13 @@ edition = "2018"
 [lib]
 crate-type = ["lib", "cdylib"]
 
+[[bin]]
+name = "test"
+path = "src/lib.rs"
+
 [dependencies]
 glutin = { git = "https://github.com/Kaiser1989/glutin" }
+image = "0.23.7"
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-glue = { git = "https://github.com/Kaiser1989/android-ndk-rs" }
