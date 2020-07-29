@@ -8,6 +8,8 @@ use std::default::Default;
 use crate::gl;
 use crate::gl::types::*;
 
+pub use image;
+
 //////////////////////////////////////////////////
 // Types
 
@@ -281,7 +283,7 @@ impl GlTexture {
             gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MIN_FILTER, gl::LINEAR as GLint);
             gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as GLint);
             gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as GLint);
-            gl.GenerateMipmap(gl::TEXTURE_2D_ARRAY);
+            //gl.GenerateMipmap(gl::TEXTURE_2D_ARRAY);
             gl.BindTexture(gl::TEXTURE_2D_ARRAY, 0);
             if !check_error(gl, "[FAILED] > Failed to create texture array") {
                 println!("[DONE]")
@@ -565,14 +567,14 @@ pub unsafe fn check_error(gl: &Gl, description: &str) -> bool {
 pub unsafe fn print_shader_log(gl: &Gl, shader: GLuint) {
     let mut buffer = vec![0u8; 2048];
     let mut length = 0;
-    gl.GetShaderInfoLog(shader, (buffer.len() * size_of::<u8>()) as GLsizei, &mut length, buffer.as_mut_ptr() as *mut i8);
+    gl.GetShaderInfoLog(shader, (buffer.len() * size_of::<u8>()) as GLsizei, &mut length, buffer.as_mut_ptr() as *mut _);
     println!("{}", &String::from_utf8_lossy(&buffer[..length as usize]));
 }
 
 pub unsafe fn print_program_info(gl: &Gl, program: GLuint) {
     let mut buffer = vec![0u8; 2048];
     let mut length = 0;
-    gl.GetProgramInfoLog(program, (buffer.len() * size_of::<u8>()) as GLsizei, &mut length, buffer.as_mut_ptr() as *mut i8);
+    gl.GetProgramInfoLog(program, (buffer.len() * size_of::<u8>()) as GLsizei, &mut length, buffer.as_mut_ptr() as *mut _);
     println!("{}", &String::from_utf8_lossy(&buffer[..length as usize]));
 }
 

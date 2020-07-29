@@ -1,7 +1,8 @@
 //////////////////////////////////////////////////
 // Modules
 
-pub(crate) mod gl {
+//pub(crate) mod gl {
+pub mod gl {
     include!(concat!(env!("OUT_DIR"), "/gl_bindings.rs"));
 }
 
