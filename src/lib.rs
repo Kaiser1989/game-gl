@@ -479,6 +479,8 @@ pub struct GlVertexArrayObject {
 pub struct GlVertexBuffer<T: Default> {
     gl: Option<Gl>,
     id: GLuint,
+    count: usize,
+    max_count: usize,
     phantom: std::marker::PhantomData<T>,
 }
 
@@ -486,6 +488,8 @@ pub struct GlVertexBuffer<T: Default> {
 pub struct GlIndexBuffer {
     gl: Option<Gl>,
     id: GLuint,
+    count: usize,
+    max_count: usize,
 }
 
 #[derive(Debug, Default)]
@@ -602,7 +606,31 @@ impl<T: Default> GlVertexBuffer<T> {
                 log::debug!("Created vertex buffer {}", id)
             }
         }
-        GlVertexBuffer { gl: Some(gl.clone()), id, phantom: std::marker::PhantomData }
+        let count = data.len();
+        let max_count = data.len();
+        GlVertexBuffer { gl: Some(gl.clone()), id, phantom: std::marker::PhantomData, count, max_count }
+    }
+
+    pub fn update(&mut self, data: &[T]) {
+        assert!(data.len() <= self.max_count, "Update data must fit into buffer");
+        let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
+        unsafe {
+            gl.BindBuffer(gl::ARRAY_BUFFER, self.id);
+            gl.BufferSubData(gl::ARRAY_BUFFER, 0, (data.len() * size_of::<T>()) as GLsizeiptr, data.as_ptr() as * const _);
+            gl.BindBuffer(gl::ARRAY_BUFFER, 0);
+            if !check_error(gl, "Failed to update vertex buffer") {
+                log::debug!("Updated vertex buffer {}", self.id)
+            }
+        }
+        self.count = data.len();
+    }
+
+    pub fn count(&self) -> usize { 
+        self.count 
+    }
+
+    pub fn max_count(&self) -> usize {
+        self.max_count
     }
 }
 
@@ -623,7 +651,9 @@ impl GlIndexBuffer {
                 log::debug!("Created index buffer {}", id)
             }
         }
-        GlIndexBuffer { gl: Some(gl.clone()), id }
+        let count = indices.len();
+        let max_count = indices.len();
+        GlIndexBuffer { gl: Some(gl.clone()), id, count, max_count }
     }
 
     pub fn bind(&mut self) {
@@ -640,6 +670,28 @@ impl GlIndexBuffer {
             gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
             check_error(gl, "Failed to unbind index buffer");
         }
+    }
+
+    pub fn update(&mut self, indices: &[u32]) {
+        assert!(indices.len() <= self.max_count, "Update data must fit into buffer");
+        let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
+        unsafe {
+            gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.id);
+            gl.BufferSubData(gl::ELEMENT_ARRAY_BUFFER, 0, (indices.len() * size_of::<u32>()) as GLsizeiptr, indices.as_ptr() as * const _);
+            gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
+            if !check_error(gl, "Failed to update index buffer") {
+                log::debug!("Updated index buffer {}", self.id)
+            }
+        }
+        self.count = indices.len();
+    }
+
+    pub fn count(&self) -> usize { 
+        self.count 
+    }
+
+    pub fn max_count(&self) -> usize {
+        self.max_count
     }
 }
 
@@ -681,6 +733,18 @@ impl<T: Default> GlUniformBuffer<T> {
                     *active = false;
                 }
             });
+        }
+    }
+
+    pub fn update(&mut self, data: &T) {
+        let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
+        unsafe {
+            gl.BindBuffer(gl::UNIFORM_BUFFER, self.id);
+            gl.BufferSubData(gl::UNIFORM_BUFFER, 0, size_of::<T>() as GLsizeiptr, data as *const T as * const _);
+            gl.BindBuffer(gl::UNIFORM_BUFFER, 0);
+            if !check_error(gl, "Failed to update uniform buffer") {
+                log::debug!("Updated uniform buffer {}", self.id)
+            }
         }
     }
 }
