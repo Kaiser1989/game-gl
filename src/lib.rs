@@ -726,11 +726,17 @@ impl GlTexture {
             gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MIN_FILTER, gl::LINEAR as GLint);
             gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as GLint);
             gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as GLint);
-            //gl.GenerateMipmap(gl::TEXTURE_2D_ARRAY);
-            gl.BindTexture(gl::TEXTURE_2D_ARRAY, 0);
             if !check_error(gl, "[FAILED] > Failed to create texture array") {
                 println!("[DONE]")
             }
+
+            print!("Create texture mipmapping ... ");
+            gl.GenerateMipmap(gl::TEXTURE_2D_ARRAY);
+            if !check_error(gl, "[FAILED] > Failed to create texture mipmapping") {
+                println!("[DONE]")
+            }
+
+            gl.BindTexture(gl::TEXTURE_2D_ARRAY, 0);
         }
         GlTexture { gl: Some(gl.clone()), id, .. Default::default() }
     }
