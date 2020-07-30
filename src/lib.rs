@@ -278,7 +278,9 @@ impl DeviceContext {
     }
 
     fn print_context(&self) {
-        println!("OpenGL device:\n-> Version: {:?}\n-> {:?}", self.get_string(gl::VERSION), self.window_context.get_pixel_format());
+        log::info!("Created OpenGL context:");
+        log::info!("- Version: {:?}", self.get_string(gl::VERSION));
+        log::info!("- {:?}", self.window_context.get_pixel_format());
     }
 
     // +++ Starting OpenGL functions
@@ -518,10 +520,9 @@ impl GlVertexArrayObject {
     pub fn new(gl: &Gl) -> GlVertexArrayObject {
         let mut id: GLuint = 0;
         unsafe {
-            print!("Create vertex array object ... ");
             gl.GenVertexArrays(1, &mut id as _);
-            if !check_error(gl, "[FAILED] > Failed to create vertex array object") {
-                println!("[DONE]");
+            if !check_error(gl, "Failed to create vertex array object") {
+                log::debug!("Created vertex array object {}", id);
             }
         }
         GlVertexArrayObject { gl: Some(gl.clone()), id, .. Default::default() }
@@ -593,13 +594,12 @@ impl<T: Default> GlVertexBuffer<T> {
     pub fn new(gl: &Gl, usage: GLenum, data: &[T]) -> GlVertexBuffer<T> {
         let mut id: GLuint = 0;
         unsafe {
-            print!("Create vertex buffer ... ");
             gl.GenBuffers(1, &mut id);
             gl.BindBuffer(gl::ARRAY_BUFFER, id);
             gl.BufferData(gl::ARRAY_BUFFER, (data.len() * size_of::<T>()) as GLsizeiptr, data.as_ptr() as * const _, usage);
             gl.BindBuffer(gl::ARRAY_BUFFER, 0);
-            if !check_error(gl, "[FAILED] > Failed to create vertex buffer") {
-                println!("[DONE]")
+            if !check_error(gl, "Failed to create vertex buffer") {
+                log::debug!("Created vertex buffer {}", id)
             }
         }
         GlVertexBuffer { gl: Some(gl.clone()), id, phantom: std::marker::PhantomData }
@@ -615,13 +615,12 @@ impl GlIndexBuffer {
     pub fn new(gl: &Gl, usage: GLenum, indices: &[u32]) -> GlIndexBuffer {
         let mut id: GLuint = 0;
         unsafe {
-            print!("Create index buffer ... ");
             gl.GenBuffers(1, &mut id);
             gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, id);
             gl.BufferData(gl::ELEMENT_ARRAY_BUFFER, (indices.len() * size_of::<u32>()) as GLsizeiptr, indices.as_ptr() as * const _, usage);
             gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
-            if !check_error(gl, "[FAILED] > Failed to create index buffer") {
-                println!("[DONE]")
+            if !check_error(gl, "Failed to create index buffer") {
+                log::debug!("Created index buffer {}", id)
             }
         }
         GlIndexBuffer { gl: Some(gl.clone()), id }
@@ -652,13 +651,12 @@ impl<T: Default> GlUniformBuffer<T> {
     pub fn new(gl: &Gl, usage: GLenum, data: &T) -> GlUniformBuffer<T>{
         let mut id: GLuint = 0;
         unsafe {
-            print!("Create uniform buffer ... ");
             gl.GenBuffers(1, &mut id);
             gl.BindBuffer(gl::UNIFORM_BUFFER, id);
             gl.BufferData(gl::UNIFORM_BUFFER, size_of::<T>() as GLsizeiptr, data as *const T as * const _, usage);
             gl.BindBuffer(gl::UNIFORM_BUFFER, 0);
-            if !check_error(gl, "[FAILED] > Failed to create index buffer") {
-                println!("[DONE]")
+            if !check_error(gl, "Failed to create index buffer") {
+                log::debug!("Created uniform buffer {}", id)
             }
         }
         GlUniformBuffer { gl: Some(gl.clone()), id, phantom: std::marker::PhantomData, .. Default::default() }
@@ -712,13 +710,13 @@ impl GlTexture {
             image::ColorType::Rgba16 => (gl::RGBA, gl::RGBA16F),
             _ => unimplemented!()
         };
+        let num_mip_map = 1 + (img.width().min(img.height()) as f32).log2().floor() as i32;
 
         let mut id: GLuint = 0;
         unsafe {
-            print!("Create texture array ... ");
             gl.GenTextures(1, &mut id);
             gl.BindTexture(gl::TEXTURE_2D_ARRAY, id);
-            gl.TexStorage3D(gl::TEXTURE_2D_ARRAY, 1, internal_format, img.width() as GLsizei, img.height() as GLsizei, images.len()  as GLsizei);
+            gl.TexStorage3D(gl::TEXTURE_2D_ARRAY, num_mip_map, internal_format, img.width() as GLsizei, img.height() as GLsizei, images.len()  as GLsizei);
             images.iter().enumerate().for_each(|(i, img)| {
                 gl.TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, i as GLint, img.width() as GLsizei, img.height() as GLsizei, 1, format, pixel_type, img.as_ptr() as * const _);
             });
@@ -726,14 +724,13 @@ impl GlTexture {
             gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MIN_FILTER, gl::LINEAR as GLint);
             gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as GLint);
             gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as GLint);
-            if !check_error(gl, "[FAILED] > Failed to create texture array") {
-                println!("[DONE]")
+            if !check_error(gl, "Failed to create texture array") {
+                log::debug!("Created texture array {}", id)
             }
 
-            print!("Create texture mipmapping ... ");
             gl.GenerateMipmap(gl::TEXTURE_2D_ARRAY);
-            if !check_error(gl, "[FAILED] > Failed to create texture mipmapping") {
-                println!("[DONE]")
+            if !check_error(gl, "Failed to create texture mipmapping") {
+                log::debug!("Created mipmapping for texture {}", id)
             }
 
             gl.BindTexture(gl::TEXTURE_2D_ARRAY, 0);
@@ -774,60 +771,56 @@ impl GlShader {
 
     pub fn new(gl: &Gl, vert: &[u8], frag: &[u8]) -> GlShader {
         unsafe {
-            print!("Creating shaders ... ");
             let vs = gl.CreateShader(gl::VERTEX_SHADER);
+            if !check_error(gl, "Failed to create shaders") {
+                log::debug!("Created vertex shader {}", vs);
+            }
             let fs = gl.CreateShader(gl::FRAGMENT_SHADER);
-            if !check_error(gl, "[FAILED] > Failed to create shader") {
-                println!("[DONE]");
+            if !check_error(gl, "Failed to create shaders") {
+                log::debug!("Created fragment shader {}", fs);
             }
 
-            print!("Compiling vertex shader ... ");
             gl.ShaderSource(vs, 1, [vert.as_ptr() as * const _].as_ptr(), std::ptr::null());
             gl.CompileShader(vs);
             let mut status = 0;
             gl.GetShaderiv(vs, gl::COMPILE_STATUS, &mut status);
             if status == 0 {
-                println!("[FAILED] > Failed to compile vertex shader");
+                log::error!("Failed to compile vertex shader");
                 print_shader_log(gl, vs);
             } else {
-                println!("[DONE]");
+                log::debug!("Compiled vertex shader {}", vs);
             }
 
-            print!("Compiling fragment shader ... ");
             gl.ShaderSource(fs, 1, [frag.as_ptr() as * const _].as_ptr(), std::ptr::null());
             gl.CompileShader(fs);
             let mut status = 0;
             gl.GetShaderiv(fs, gl::COMPILE_STATUS, &mut status);
             if status == 0 {
-                println!("[FAILED] > Failed to compile fragment shader");
+                log::error!("Failed to compile fragment shader");
                 print_shader_log(gl, fs);
             } else {
-                println!("[DONE]");
+                log::debug!("Compiled fragment shader {}", fs);
             }
 
-            print!("Create shader program ... ");
             let program = gl.CreateProgram();
-            if !check_error(gl, "[FAILED] > Failed to create program") {
-                println!("[DONE]");
+            if !check_error(gl, "Failed to create shader program") {
+                log::debug!("Created shader program {}", program);
             }
 
-            print!("Attach vertex shader to program ... ");
             gl.AttachShader(program, vs);
-            if !check_error(gl, "*** Failed to attach vertex shader") {
-                println!("[DONE]"); 
+            if !check_error(gl, "Failed to attach vertex shader") {
+                log::debug!("Attached vertex shader {} to program {}", vs, program); 
             }
 
-            print!("Attach fragment shader to program ... ");
             gl.AttachShader(program, fs);
-            if !check_error(gl, "*** Failed to attach fragment shader") {
-                println!("[DONE]");
+            if !check_error(gl, "Failed to attach fragment shader") {
+                log::debug!("Attached fragment shader {} to program {}", fs, program);
             }
 
-            print!("Link program ... ");
             gl.LinkProgram(program);
             //print_program_info(gl, program);
-            if !check_error(gl, "[FAILED] > Failed to link program") {
-                println!("[DONE]");
+            if !check_error(gl, "Failed to link program") {
+                log::debug!("Linked program {}", program);
             }
 
             GlShader { gl: Some(gl.clone()), vs, fs, program }
@@ -901,10 +894,9 @@ impl GlResource for GlVertexArrayObject {
     fn release(&mut self) {
         if let Some(gl) = self.gl.as_ref() {
             unsafe { 
-                print!("Delete vertex array object ... ");
                 gl.DeleteVertexArrays(1, [self.id].as_ptr() as * const _); 
-                if !check_error(gl, "[FAILED] > Failed to release vertex array object") {
-                    println!("[DONE]")
+                if !check_error(gl, "Failed to release vertex array object") {
+                    log::debug!("Deleted vertex array object {}", self.id)
                 }
             }
             self.gl = None;
@@ -917,10 +909,9 @@ impl<T: Default> GlResource for GlVertexBuffer<T> {
     fn release(&mut self) {
         if let Some(gl) = self.gl.as_ref() {
             unsafe { 
-                print!("Delete vertex buffer ... ");
                 gl.DeleteBuffers(1, &self.id); 
-                if !check_error(gl, "[FAILED] > Failed to release vertex buffer") {
-                    println!("[DONE]")
+                if !check_error(gl, "Failed to release vertex buffer") {
+                    log::debug!("Deleted vertex buffer {}", self.id)
                 }
             }
             self.gl = None;
@@ -933,10 +924,9 @@ impl GlResource for GlIndexBuffer {
     fn release(&mut self) {
         if let Some(gl) = self.gl.as_ref() {
             unsafe { 
-                print!("Delete index buffer ... ");
                 gl.DeleteBuffers(1, &self.id);
-                if !check_error(gl, "[FAILED] > Failed to release index buffer") {
-                    println!("[DONE]");
+                if !check_error(gl, "Failed to release index buffer") {
+                    log::debug!("Deleted index buffer {}", self.id);
                 }
             }
             self.gl = None;
@@ -949,10 +939,9 @@ impl<T: Default> GlResource for GlUniformBuffer<T> {
     fn release(&mut self) {
         if let Some(gl) = self.gl.as_ref() {
             unsafe { 
-                print!("Delete uniform buffer ... ");
                 gl.DeleteBuffers(1, &self.id); 
-                if !check_error(gl, "[FAILED] > Failed to release uniform buffer") {
-                    println!("[DONE]")
+                if !check_error(gl, "Failed to release uniform buffer") {
+                    log::debug!("Deleted uniform buffer {}", self.id)
                 }
             }
             self.gl = None;
@@ -965,10 +954,9 @@ impl GlResource for GlTexture {
     fn release(&mut self) {
         if let Some(gl) = self.gl.as_ref() {
             unsafe { 
-                print!("Delete texture ... ");
                 gl.DeleteTextures(1, &self.id);
-                if !check_error(gl, "[FAILED] > Failed to release texture") {
-                    println!("[DONE]");
+                if !check_error(gl, "Failed to release texture") {
+                    log::debug!("Deleted texture {}", self.id);
                 }
             }
             self.gl = None;
@@ -981,14 +969,25 @@ impl GlResource for GlShader {
     fn release(&mut self) {
         if let Some(gl) = self.gl.as_ref() {
             unsafe {
-                print!("Delete shaders ... ");
                 gl.DetachShader(self.program, self.vs);
+                if !check_error(gl, "Failed to destroy shaders") {
+                    log::debug!("Detached vertex shader {} from program {}", self.vs, self.program);
+                }
                 gl.DetachShader(self.program, self.fs);
-                gl.DeleteProgram(self.program);
+                if !check_error(gl, "Failed to destroy shaders") {
+                    log::debug!("Detached fragment shader {} from program {}", self.fs, self.program);
+                }
                 gl.DeleteShader(self.vs);
+                if !check_error(gl, "Failed to destroy shaders") {
+                    log::debug!("Deleted vertex shader {}", self.vs);
+                }
                 gl.DeleteShader(self.fs);
-                if !check_error(gl, "[FAILED] > Failed to destroy shaders") {
-                    println!("[DONE]");
+                if !check_error(gl, "Failed to destroy shaders") {
+                    log::debug!("Deleted fragment shader {}", self.fs);
+                }
+                gl.DeleteProgram(self.program);
+                if !check_error(gl, "Failed to destroy shaders") {
+                    log::debug!("Deleted program {}", self.program);
                 }
             }
             self.gl = None;
@@ -1006,7 +1005,7 @@ pub unsafe fn check_error(gl: &Gl, description: &str) -> bool {
     let mut err = gl.GetError();
     let mut has_error = false;
     while err != gl::NO_ERROR {
-        println!("{}. ErrorCode {}", description, err);
+        log::error!("{}. ErrorCode {}", description, err);
         err = gl.GetError();
         has_error = true;
     }
@@ -1017,14 +1016,14 @@ pub unsafe fn print_shader_log(gl: &Gl, shader: GLuint) {
     let mut buffer = vec![0u8; 2048];
     let mut length = 0;
     gl.GetShaderInfoLog(shader, (buffer.len() * size_of::<u8>()) as GLsizei, &mut length, buffer.as_mut_ptr() as *mut _);
-    println!("{}", &String::from_utf8_lossy(&buffer[..length as usize]));
+    log::debug!("{}", &String::from_utf8_lossy(&buffer[..length as usize]));
 }
 
 pub unsafe fn print_program_info(gl: &Gl, program: GLuint) {
     let mut buffer = vec![0u8; 2048];
     let mut length = 0;
     gl.GetProgramInfoLog(program, (buffer.len() * size_of::<u8>()) as GLsizei, &mut length, buffer.as_mut_ptr() as *mut _);
-    println!("{}", &String::from_utf8_lossy(&buffer[..length as usize]));
+    log::debug!("{}", &String::from_utf8_lossy(&buffer[..length as usize]));
 }
 
 
