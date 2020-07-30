@@ -5,7 +5,6 @@ pub mod prelude {
     pub use crate::{GameLoop, Runner, Gl, input::InputEvent};
     pub use crate::gl;
     pub use crate::gl::types::*;
-    pub use image;
 }
 
 
@@ -458,6 +457,7 @@ impl From<glutin::event::KeyboardInput> for KeyboardEvent {
 pub mod resource {
 
 use super::*;
+pub use image;
 
 //////////////////////////////////////////////////
 // Resources
