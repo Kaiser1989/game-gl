@@ -311,7 +311,7 @@ impl Platform {
     fn srgb_support() -> bool { false }
     fn vsync_support() -> bool { true }
     fn opengl_api_support() -> Api { Api::OpenGlEs }
-    fn opengl_version_support() -> (u8, u8) { (2, 0) }
+    fn opengl_version_support() -> (u8, u8) { (3, 0) }
 }
 
 #[cfg(not(target_os = "android"))]
