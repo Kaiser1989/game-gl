@@ -834,6 +834,12 @@ impl GlTexture {
 impl GlShader {
 
     pub fn new(gl: &Gl, vert: &[u8], frag: &[u8]) -> GlShader {
+        // ensure null termination
+        let vert_string = std::ffi::CString::new(vert).expect("Failed to convert to C-String");
+        let frag_string = std::ffi::CString::new(frag).expect("Failed to convert to C-String");
+        let vert = vert_string.as_bytes_with_nul();
+        let frag = frag_string.as_bytes_with_nul();
+
         unsafe {
             let vs = gl.CreateShader(gl::VERTEX_SHADER);
             if !check_error(gl, "Failed to create shaders") {
