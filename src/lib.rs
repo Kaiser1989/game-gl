@@ -970,8 +970,8 @@ impl GlResource for GlVertexArrayObject {
                     log::debug!("Deleted vertex array object {}", self.id)
                 }
             }
-            self.gl = None;
         }
+        self.gl = None;
     } 
 }
 impl Drop for GlVertexArrayObject { fn drop(&mut self) { self.release() } }
@@ -985,8 +985,8 @@ impl<T: Default> GlResource for GlVertexBuffer<T> {
                     log::debug!("Deleted vertex buffer {}", self.id)
                 }
             }
-            self.gl = None;
         }
+        self.gl = None;
     }
 }
 impl<T: Default> Drop for GlVertexBuffer<T> { fn drop(&mut self) { self.release() } }
@@ -1000,8 +1000,8 @@ impl GlResource for GlIndexBuffer {
                     log::debug!("Deleted index buffer {}", self.id);
                 }
             }
-            self.gl = None;
         }
+        self.gl = None;
     }
 }
 impl Drop for GlIndexBuffer { fn drop(&mut self) { self.release() } }
@@ -1015,8 +1015,8 @@ impl<T: Default> GlResource for GlUniformBuffer<T> {
                     log::debug!("Deleted uniform buffer {}", self.id)
                 }
             }
-            self.gl = None;
         }
+        self.gl = None;
     }
 }
 impl<T: Default> Drop for GlUniformBuffer<T> { fn drop(&mut self) { self.release() } }
@@ -1030,8 +1030,8 @@ impl GlResource for GlTexture {
                     log::debug!("Deleted texture {}", self.id);
                 }
             }
-            self.gl = None;
         }
+        self.gl = None;
     }
 }
 impl Drop for GlTexture { fn drop(&mut self) { self.release() } }
@@ -1061,8 +1061,8 @@ impl GlResource for GlShader {
                     log::debug!("Deleted program {}", self.program);
                 }
             }
-            self.gl = None;
         }
+        self.gl = None;
     }
 }
 impl Drop for GlShader { fn drop(&mut self) { self.release() } }
