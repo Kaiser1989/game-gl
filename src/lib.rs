@@ -229,7 +229,7 @@ impl<T: Runner> GameLoop<T> {
                         self.runner.update(elapsed_time);
 
                         // render call
-                        if let Some(device_ctx) = self.device_ctx.as_mut() {
+                        if let (true, Some(device_ctx)) = (self.has_render_context(), self.device_ctx.as_mut()) {
 
                             // call render callback
                             self.runner.render(&device_ctx.gl);
@@ -237,11 +237,11 @@ impl<T: Runner> GameLoop<T> {
                             // swap buffers
                             match device_ctx.window_context.swap_buffers() {
                                 Err(_) => {
-                                    log::warn!("Corrupted context, try recovering ...");
+                                    log::warn!("Corrupted render context, try recovering ...");
                                     self.runner.destroy_device(&device_ctx.gl);
                                     *device_ctx = DeviceContext::new(_event_loop);
                                     self.runner.create_device(&device_ctx.gl);
-                                    log::warn!("Corrupted context, try recovering ...");
+                                    log::warn!("... recovering successful!");
                                 },
                                 Ok(_) => {}
                             }
@@ -264,6 +264,18 @@ impl<T: Runner> GameLoop<T> {
 
         // call cleanup callback
         self.runner.cleanup();
+    }
+
+    // ANDROID: check if we have render context
+    #[cfg(target_os = "android")]
+    fn has_context(&self) -> bool {
+        self.device_ctx.is_some() && ndk_glue::native_window().is_some()
+    }
+
+    // WINDOWS: check if we have render context
+    #[cfg(not(target_os = "android"))]
+    fn has_render_context(&self) -> bool {
+        self.device_ctx.is_some()
     }
 }
 
@@ -345,7 +357,7 @@ fn enable_immersive() {
     let flag_immersive_sticky = env.get_static_field(view_class, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I").unwrap().i().unwrap();
     let flag = flag_fullscreen | flag_hide_navigation | flag_immersive_sticky;
     match env.call_method(view, "setSystemUiVisibility", "(I)V", &[jni::objects::JValue::Int(flag)]) {
-        Err(_) => log::error!("Failed to enable immersive mode"),
+        Err(_) => log::warn!("Failed to enable immersive mode"),
         Ok(_) => {}
     }
     env.exception_clear().unwrap();
