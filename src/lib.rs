@@ -268,7 +268,7 @@ impl<T: Runner> GameLoop<T> {
 
     // ANDROID: check if we have render context
     #[cfg(target_os = "android")]
-    fn has_context(&self) -> bool {
+    fn has_render_context(&self) -> bool {
         self.device_ctx.is_some() && ndk_glue::native_window().is_some()
     }
 
