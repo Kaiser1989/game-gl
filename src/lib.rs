@@ -171,7 +171,6 @@ impl<T: Runner> GameLoop<T> {
                             }
                         }
                     },
-
                     Event::WindowEvent { event, .. } => match event {
                         WindowEvent::Resized(physical_size) => {
                             if let Some(device_ctx) = self.device_ctx.as_mut() {

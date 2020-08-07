@@ -619,6 +619,7 @@ impl Drop for GlShader { fn drop(&mut self) { self.release() } }
 // Check error call
 
 #[inline]
+#[cfg(debug_assertions)]
 pub unsafe fn check_error(gl: &Gl, description: &str) -> bool {
     let mut err = gl.GetError();
     let mut has_error = false;
@@ -629,6 +630,10 @@ pub unsafe fn check_error(gl: &Gl, description: &str) -> bool {
     }
     has_error
 }
+
+#[inline]
+#[cfg(not(debug_assertions))]
+pub unsafe fn check_error(_gl: &Gl, _description: &str) -> bool { false }
 
 pub unsafe fn print_shader_log(gl: &Gl, shader: GLuint) {
     let mut buffer = vec![0u8; 2048];
