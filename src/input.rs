@@ -53,13 +53,19 @@ pub enum TouchState {
 #[derive(Debug, Copy, Clone)]
 pub struct KeyboardEvent {
     pub state: KeyState,
-    pub key: u32,
+    pub key: Key,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum KeyState {
     Pressed,
     Released,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Key {
+    Back,
+    Unknown,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -123,7 +129,13 @@ impl From<glutin::event::ElementState> for KeyState {
 
 impl From<glutin::event::KeyboardInput> for KeyboardEvent {
     fn from(e: glutin::event::KeyboardInput) -> KeyboardEvent {
-        let glutin::event::KeyboardInput { scancode, state, ..} = e;
-        KeyboardEvent { state: state.into(), key: scancode }
+        let glutin::event::KeyboardInput { virtual_keycode, state, ..} = e;
+        KeyboardEvent { 
+            state: state.into(), 
+            key: match virtual_keycode {
+                Some(glutin::event::VirtualKeyCode::Back) => Key::Back,
+                _ => Key::Unknown,
+            } 
+        }
     }
 }
