@@ -63,10 +63,6 @@ pub trait Runner {
 
     fn cleanup(&mut self);
 
-    fn pause(&mut self);
-
-    fn resume(&mut self);
-
     fn input(&mut self, input_events: &[InputEvent]);
 
     fn update(&mut self, elapsed_time: f32);
@@ -122,6 +118,14 @@ impl<T: Runner> GameLoop<T> {
             }
         }
 
+        // WINDOWS: App is starting paused 
+        #[cfg(target_os = "android")]
+        let mut paused = true;
+
+        // WINDOWS: App is starting unpaused 
+        #[cfg(not(target_os = "android"))]
+        let mut paused = false;
+
         // starting game loop
         let mut running = true;
         while running {
@@ -151,13 +155,13 @@ impl<T: Runner> GameLoop<T> {
                         }
 
                         // call resume callback
-                        self.runner.resume();
+                        paused = false;
 
                     },
                     Event::Suspended => {
 
                         // call pause callback
-                        self.runner.pause();
+                        paused = true;
 
                         // ANDROID: only destroy if native window is available
                         #[cfg(target_os = "android")]
@@ -224,25 +228,29 @@ impl<T: Runner> GameLoop<T> {
                         self.runner.input(&input_events);
                         input_events.clear();
 
-                        // call update callback
-                        self.runner.update(elapsed_time);
+                        // if app is paused do not call update and render
+                        if !paused {
 
-                        // render call
-                        if let (true, Some(device_ctx)) = (self.has_render_context(), self.device_ctx.as_mut()) {
+                            // call update callback
+                            self.runner.update(elapsed_time);
 
-                            // call render callback
-                            self.runner.render(&device_ctx.gl);
+                            // render call
+                            if let (true, Some(device_ctx)) = (self.has_render_context(), self.device_ctx.as_mut()) {
 
-                            // swap buffers
-                            match device_ctx.window_context.swap_buffers() {
-                                Err(_) => {
-                                    log::warn!("Corrupted render context, try recovering ...");
-                                    self.runner.destroy_device(&device_ctx.gl);
-                                    *device_ctx = DeviceContext::new(_event_loop);
-                                    self.runner.create_device(&device_ctx.gl);
-                                    log::warn!("... recovering successful!");
-                                },
-                                Ok(_) => {}
+                                // call render callback
+                                self.runner.render(&device_ctx.gl);
+
+                                // swap buffers
+                                match device_ctx.window_context.swap_buffers() {
+                                    Err(_) => {
+                                        log::warn!("Corrupted render context, try recovering ...");
+                                        self.runner.destroy_device(&device_ctx.gl);
+                                        *device_ctx = DeviceContext::new(_event_loop);
+                                        self.runner.create_device(&device_ctx.gl);
+                                        log::warn!("... recovering successful!");
+                                    },
+                                    Ok(_) => {}
+                                }
                             }
                         }
                     },
