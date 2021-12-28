@@ -1,13 +1,12 @@
 //////////////////////////////////////////////////
 // Input
 
-
 #[derive(Debug, Copy, Clone)]
 pub enum InputEvent {
     Cursor(CursorEvent),
     Mouse(MouseEvent),
     Touch(TouchEvent),
-    Keyboard(KeyboardEvent)
+    Keyboard(KeyboardEvent),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -32,7 +31,7 @@ pub enum MouseButton {
     Left,
     Middle,
     Right,
-    Other(u8),
+    Other(u16),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -76,13 +75,16 @@ pub struct Location {
 
 impl From<glutin::dpi::PhysicalPosition<f64>> for Location {
     fn from(e: glutin::dpi::PhysicalPosition<f64>) -> Location {
-        Location { x: e.x as f32, y: e.y as f32 }
+        Location {
+            x: e.x as f32,
+            y: e.y as f32,
+        }
     }
 }
 
 impl From<glutin::event::ElementState> for MouseState {
     fn from(e: glutin::event::ElementState) -> MouseState {
-        match e { 
+        match e {
             glutin::event::ElementState::Pressed => MouseState::Pressed,
             glutin::event::ElementState::Released => MouseState::Released,
         }
@@ -102,8 +104,17 @@ impl From<glutin::event::MouseButton> for MouseButton {
 
 impl From<glutin::event::Touch> for TouchEvent {
     fn from(e: glutin::event::Touch) -> TouchEvent {
-        let glutin::event::Touch { phase, location, id, .. } = e;
-        TouchEvent { state: phase.into(), location: location.into(), id }
+        let glutin::event::Touch {
+            phase,
+            location,
+            id,
+            ..
+        } = e;
+        TouchEvent {
+            state: phase.into(),
+            location: location.into(),
+            id,
+        }
     }
 }
 
@@ -120,7 +131,7 @@ impl From<glutin::event::TouchPhase> for TouchState {
 
 impl From<glutin::event::ElementState> for KeyState {
     fn from(e: glutin::event::ElementState) -> KeyState {
-        match e { 
+        match e {
             glutin::event::ElementState::Pressed => KeyState::Pressed,
             glutin::event::ElementState::Released => KeyState::Released,
         }
@@ -129,13 +140,17 @@ impl From<glutin::event::ElementState> for KeyState {
 
 impl From<glutin::event::KeyboardInput> for KeyboardEvent {
     fn from(e: glutin::event::KeyboardInput) -> KeyboardEvent {
-        let glutin::event::KeyboardInput { virtual_keycode, state, ..} = e;
-        KeyboardEvent { 
-            state: state.into(), 
+        let glutin::event::KeyboardInput {
+            virtual_keycode,
+            state,
+            ..
+        } = e;
+        KeyboardEvent {
+            state: state.into(),
             key: match virtual_keycode {
                 Some(glutin::event::VirtualKeyCode::Back) => Key::Back,
                 _ => Key::Unknown,
-            } 
+            },
         }
     }
 }
