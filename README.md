@@ -92,7 +92,6 @@ https://github.com/rust-windowing/android-rs-glue
 This project is based on bug fixed forks of:
 * glutin 0.28
 * winit 0.26
-* android-ndk-rs 0.5.0
 
 All these projects were forked to my github. Therefore only the project only consists of git dependencies to my local git repositiories.
 ### Why don't you create pull requests in the original projects:
