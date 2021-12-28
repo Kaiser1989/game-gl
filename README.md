@@ -86,20 +86,13 @@ ResizeDevice function is called whenever a render context changes its size (reso
 To install the build pipeline and android targets, follow the installation guidline on: 
 https://github.com/rust-windowing/android-rs-glue
 
-DO NOT USE: `cargo install cargo-apk`
-
-INSTEAD USE: `cargo install --git="https://github.com/Kaiser1989/android-ndk-rs" cargo-apk`
-
 <br>
 
 ## Dependencies
 This project is based on bug fixed forks of:
-* glutin 0.24.1
-* winit 0.22.2
-* android-ndk-rs 0.1.0
-
-and the original crate:
-* gl_generator 0.14.0
+* glutin 0.28
+* winit 0.26
+* android-ndk-rs 0.5.0
 
 All these projects were forked to my github. Therefore only the project only consists of git dependencies to my local git repositiories.
 ### Why don't you create pull requests in the original projects:
@@ -111,7 +104,7 @@ All you need to do, to get your app run on Windows and Android (not testes for I
 game-gl = { git = "https://github.com/Kaiser1989/game-gl" }
 
 [target.'cfg(target_os = "android")'.dependencies]
-ndk-glue = { git = "https://github.com/Kaiser1989/android-ndk-rs" }
+ndk-glue = "0.5.0"
 
 [package.metadata.android]
 build_targets = [ "armv7-linux-androideabi", "aarch64-linux-android", "i686-linux-android", "x86_64-linux-android" ]
@@ -121,7 +114,7 @@ where all sub dependencies are replaces to my bug fixed forks. There is no depen
 <br>
 
 ## Example
-A running example of this game loop crate can be found at: https://github.com/Kaiser1989/rust-android-example. This example creates a simple game loop rendering a red window. It's tests for windows and android.
+A running example of this game loop crate can be found at: https://github.com/Kaiser1989/rust-android-example. This example creates a simple game loop rendering a our beautiful lena. It's tested for windows and android.
 
 <br>
 
