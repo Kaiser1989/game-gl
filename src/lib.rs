@@ -35,10 +35,8 @@ use glutin::event_loop::{ControlFlow, EventLoopWindowTarget};
 use glutin::window::WindowBuilder;
 use glutin::{ContextBuilder, GlRequest, PossiblyCurrent, WindowedContext};
 
-#[cfg(not(target_os = "android"))]
 use glutin::event_loop::EventLoop;
-#[cfg(target_os = "android")]
-use glutin::platform::android::AndroidEventLoop as EventLoop;
+use glutin::platform::run_return::EventLoopExtRunReturn;
 
 use crate::config::Config;
 use crate::gl::types::*;
