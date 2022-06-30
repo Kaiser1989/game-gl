@@ -75,10 +75,7 @@ pub struct Location {
 
 impl From<glutin::dpi::PhysicalPosition<f64>> for Location {
     fn from(e: glutin::dpi::PhysicalPosition<f64>) -> Location {
-        Location {
-            x: e.x as f32,
-            y: e.y as f32,
-        }
+        Location { x: e.x as f32, y: e.y as f32 }
     }
 }
 
@@ -104,12 +101,7 @@ impl From<glutin::event::MouseButton> for MouseButton {
 
 impl From<glutin::event::Touch> for TouchEvent {
     fn from(e: glutin::event::Touch) -> TouchEvent {
-        let glutin::event::Touch {
-            phase,
-            location,
-            id,
-            ..
-        } = e;
+        let glutin::event::Touch { phase, location, id, .. } = e;
         TouchEvent {
             state: phase.into(),
             location: location.into(),
@@ -140,11 +132,7 @@ impl From<glutin::event::ElementState> for KeyState {
 
 impl From<glutin::event::KeyboardInput> for KeyboardEvent {
     fn from(e: glutin::event::KeyboardInput) -> KeyboardEvent {
-        let glutin::event::KeyboardInput {
-            virtual_keycode,
-            state,
-            ..
-        } = e;
+        let glutin::event::KeyboardInput { virtual_keycode, state, .. } = e;
         KeyboardEvent {
             state: state.into(),
             key: match virtual_keycode {

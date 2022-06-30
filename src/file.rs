@@ -3,12 +3,10 @@
 
 pub struct File {}
 
-
 //////////////////////////////////////////////////
 // Implementations
 
 impl File {
-
     #[cfg(target_os = "android")]
     pub fn load_bytes(filename: &str) -> Option<Vec<u8>> {
         let asset_manager = ndk_glue::native_activity().asset_manager();

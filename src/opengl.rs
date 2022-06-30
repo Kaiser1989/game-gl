@@ -98,29 +98,12 @@ impl GlVertexArrayObject {
         }
     }
 
-    pub fn bind_attrib<T: Default>(
-        &mut self,
-        vbo: &GlVertexBuffer<T>,
-        slot: GLuint,
-        count: GLint,
-        type_: GLenum,
-        normalized: GLboolean,
-        offset: usize,
-        stride: usize,
-        divisor: GLuint,
-    ) {
+    pub fn bind_attrib<T: Default>(&mut self, vbo: &GlVertexBuffer<T>, slot: GLuint, count: GLint, type_: GLenum, normalized: GLboolean, offset: usize, stride: usize, divisor: GLuint) {
         let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
         unsafe {
             gl.BindBuffer(gl::ARRAY_BUFFER, vbo.id);
             check_error(gl, "Failed to bind vertex buffer");
-            gl.VertexAttribPointer(
-                slot,
-                count,
-                type_,
-                normalized,
-                stride as i32,
-                offset as *const () as *const _,
-            );
+            gl.VertexAttribPointer(slot, count, type_, normalized, stride as i32, offset as *const () as *const _);
             check_error(gl, "Failed to set vertex attrib");
             gl.VertexAttribDivisor(slot, divisor);
             check_error(gl, "Failed to set vertex divisor");
@@ -134,17 +117,14 @@ impl GlVertexArrayObject {
     pub fn clear_attribs(&mut self) {
         let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
         unsafe {
-            self.active_slots
-                .iter_mut()
-                .enumerate()
-                .for_each(|(slot, active)| {
-                    if *active {
-                        gl.VertexAttribDivisor(slot as GLuint, 0);
-                        gl.DisableVertexAttribArray(slot as GLuint);
-                        check_error(gl, "Failed to unbind attrib");
-                        *active = false;
-                    }
-                });
+            self.active_slots.iter_mut().enumerate().for_each(|(slot, active)| {
+                if *active {
+                    gl.VertexAttribDivisor(slot as GLuint, 0);
+                    gl.DisableVertexAttribArray(slot as GLuint);
+                    check_error(gl, "Failed to unbind attrib");
+                    *active = false;
+                }
+            });
         }
     }
 }
@@ -158,12 +138,7 @@ impl<T: Default> GlVertexBuffer<T> {
         unsafe {
             gl.GenBuffers(1, &mut id);
             gl.BindBuffer(gl::ARRAY_BUFFER, id);
-            gl.BufferData(
-                gl::ARRAY_BUFFER,
-                (data.len() * size_of::<T>()) as GLsizeiptr,
-                data.as_ptr() as *const _,
-                usage,
-            );
+            gl.BufferData(gl::ARRAY_BUFFER, (data.len() * size_of::<T>()) as GLsizeiptr, data.as_ptr() as *const _, usage);
             gl.BindBuffer(gl::ARRAY_BUFFER, 0);
             if !check_error(gl, "Failed to create vertex buffer") {
                 log::debug!("Created vertex buffer {}", id)
@@ -181,19 +156,11 @@ impl<T: Default> GlVertexBuffer<T> {
     }
 
     pub fn update(&mut self, data: &[T]) {
-        assert!(
-            data.len() <= self.max_count,
-            "Update data must fit into buffer"
-        );
+        assert!(data.len() <= self.max_count, "Update data must fit into buffer");
         let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
         unsafe {
             gl.BindBuffer(gl::ARRAY_BUFFER, self.id);
-            gl.BufferSubData(
-                gl::ARRAY_BUFFER,
-                0,
-                (data.len() * size_of::<T>()) as GLsizeiptr,
-                data.as_ptr() as *const _,
-            );
+            gl.BufferSubData(gl::ARRAY_BUFFER, 0, (data.len() * size_of::<T>()) as GLsizeiptr, data.as_ptr() as *const _);
             gl.BindBuffer(gl::ARRAY_BUFFER, 0);
             if !check_error(gl, "Failed to update vertex buffer") {
                 log::debug!("Updated vertex buffer {}", self.id)
@@ -220,12 +187,7 @@ impl GlIndexBuffer {
         unsafe {
             gl.GenBuffers(1, &mut id);
             gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, id);
-            gl.BufferData(
-                gl::ELEMENT_ARRAY_BUFFER,
-                (indices.len() * size_of::<u32>()) as GLsizeiptr,
-                indices.as_ptr() as *const _,
-                usage,
-            );
+            gl.BufferData(gl::ELEMENT_ARRAY_BUFFER, (indices.len() * size_of::<u32>()) as GLsizeiptr, indices.as_ptr() as *const _, usage);
             gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
             if !check_error(gl, "Failed to create index buffer") {
                 log::debug!("Created index buffer {}", id)
@@ -258,19 +220,11 @@ impl GlIndexBuffer {
     }
 
     pub fn update(&mut self, indices: &[u32]) {
-        assert!(
-            indices.len() <= self.max_count,
-            "Update data must fit into buffer"
-        );
+        assert!(indices.len() <= self.max_count, "Update data must fit into buffer");
         let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
         unsafe {
             gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.id);
-            gl.BufferSubData(
-                gl::ELEMENT_ARRAY_BUFFER,
-                0,
-                (indices.len() * size_of::<u32>()) as GLsizeiptr,
-                indices.as_ptr() as *const _,
-            );
+            gl.BufferSubData(gl::ELEMENT_ARRAY_BUFFER, 0, (indices.len() * size_of::<u32>()) as GLsizeiptr, indices.as_ptr() as *const _);
             gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
             if !check_error(gl, "Failed to update index buffer") {
                 log::debug!("Updated index buffer {}", self.id)
@@ -297,12 +251,7 @@ impl<T: Default> GlUniformBuffer<T> {
         unsafe {
             gl.GenBuffers(1, &mut id);
             gl.BindBuffer(gl::UNIFORM_BUFFER, id);
-            gl.BufferData(
-                gl::UNIFORM_BUFFER,
-                size_of::<T>() as GLsizeiptr,
-                data as *const T as *const _,
-                usage,
-            );
+            gl.BufferData(gl::UNIFORM_BUFFER, size_of::<T>() as GLsizeiptr, data as *const T as *const _, usage);
             gl.BindBuffer(gl::UNIFORM_BUFFER, 0);
             if !check_error(gl, "Failed to create index buffer") {
                 log::debug!("Created uniform buffer {}", id)
@@ -328,16 +277,13 @@ impl<T: Default> GlUniformBuffer<T> {
     pub fn unbind(&mut self) {
         let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
         unsafe {
-            self.active_slots
-                .iter_mut()
-                .enumerate()
-                .for_each(|(slot, active)| {
-                    if *active {
-                        gl.BindBufferBase(gl::UNIFORM_BUFFER, slot as GLuint, 0);
-                        check_error(gl, "Failed to unbind uniform buffer");
-                        *active = false;
-                    }
-                });
+            self.active_slots.iter_mut().enumerate().for_each(|(slot, active)| {
+                if *active {
+                    gl.BindBufferBase(gl::UNIFORM_BUFFER, slot as GLuint, 0);
+                    check_error(gl, "Failed to unbind uniform buffer");
+                    *active = false;
+                }
+            });
         }
     }
 
@@ -345,12 +291,7 @@ impl<T: Default> GlUniformBuffer<T> {
         let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
         unsafe {
             gl.BindBuffer(gl::UNIFORM_BUFFER, self.id);
-            gl.BufferSubData(
-                gl::UNIFORM_BUFFER,
-                0,
-                size_of::<T>() as GLsizeiptr,
-                data as *const T as *const _,
-            );
+            gl.BufferSubData(gl::UNIFORM_BUFFER, 0, size_of::<T>() as GLsizeiptr, data as *const T as *const _);
             gl.BindBuffer(gl::UNIFORM_BUFFER, 0);
             if !check_error(gl, "Failed to update uniform buffer") {
                 log::debug!("Updated uniform buffer {}", self.id)
@@ -371,16 +312,10 @@ impl GlTexture {
     {
         // all textures need same size
         assert!(!images.is_empty());
-        assert!(images
-            .windows(2)
-            .all(|w| w[0].dimensions() == w[1].dimensions()));
+        assert!(images.windows(2).all(|w| w[0].dimensions() == w[1].dimensions()));
         // get specs from first image
         let img = images.first().unwrap();
-        let pixel_type = if size_of::<P::Subpixel>() == 1 {
-            gl::UNSIGNED_BYTE
-        } else {
-            gl::UNSIGNED_SHORT
-        };
+        let pixel_type = if size_of::<P::Subpixel>() == 1 { gl::UNSIGNED_BYTE } else { gl::UNSIGNED_SHORT };
         let (format, internal_format) = match <P as image::Pixel>::COLOR_TYPE {
             image::ColorType::L8 => (gl::RED, gl::R8),
             image::ColorType::Rgb8 => (gl::RGB, gl::RGB8),
@@ -418,26 +353,10 @@ impl GlTexture {
                     img.as_ptr() as *const _,
                 );
             });
-            gl.TexParameteri(
-                gl::TEXTURE_2D_ARRAY,
-                gl::TEXTURE_MAG_FILTER,
-                gl::LINEAR as GLint,
-            );
-            gl.TexParameteri(
-                gl::TEXTURE_2D_ARRAY,
-                gl::TEXTURE_MIN_FILTER,
-                gl::LINEAR as GLint,
-            );
-            gl.TexParameteri(
-                gl::TEXTURE_2D_ARRAY,
-                gl::TEXTURE_WRAP_S,
-                gl::CLAMP_TO_EDGE as GLint,
-            );
-            gl.TexParameteri(
-                gl::TEXTURE_2D_ARRAY,
-                gl::TEXTURE_WRAP_T,
-                gl::CLAMP_TO_EDGE as GLint,
-            );
+            gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MAG_FILTER, gl::LINEAR as GLint);
+            gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MIN_FILTER, gl::LINEAR as GLint);
+            gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as GLint);
+            gl.TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as GLint);
             if !check_error(gl, "Failed to create texture array") {
                 log::debug!("Created texture array {}", id)
             }
@@ -469,17 +388,14 @@ impl GlTexture {
     pub fn unbind(&mut self) {
         let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
         unsafe {
-            self.active_slots
-                .iter_mut()
-                .enumerate()
-                .for_each(|(slot, active)| {
-                    if *active {
-                        gl.ActiveTexture(gl::TEXTURE0 + slot as GLuint);
-                        gl.BindTexture(gl::TEXTURE_2D_ARRAY, 0);
-                        check_error(gl, "Failed to unbind texture");
-                        *active = false;
-                    }
-                });
+            self.active_slots.iter_mut().enumerate().for_each(|(slot, active)| {
+                if *active {
+                    gl.ActiveTexture(gl::TEXTURE0 + slot as GLuint);
+                    gl.BindTexture(gl::TEXTURE_2D_ARRAY, 0);
+                    check_error(gl, "Failed to unbind texture");
+                    *active = false;
+                }
+            });
         }
     }
 }
@@ -505,12 +421,7 @@ impl GlShader {
                 log::debug!("Created fragment shader {}", fs);
             }
 
-            gl.ShaderSource(
-                vs,
-                1,
-                [vert.as_ptr() as *const _].as_ptr(),
-                std::ptr::null(),
-            );
+            gl.ShaderSource(vs, 1, [vert.as_ptr() as *const _].as_ptr(), std::ptr::null());
             gl.CompileShader(vs);
             let mut status = 0;
             gl.GetShaderiv(vs, gl::COMPILE_STATUS, &mut status);
@@ -521,12 +432,7 @@ impl GlShader {
                 log::debug!("Compiled vertex shader {}", vs);
             }
 
-            gl.ShaderSource(
-                fs,
-                1,
-                [frag.as_ptr() as *const _].as_ptr(),
-                std::ptr::null(),
-            );
+            gl.ShaderSource(fs, 1, [frag.as_ptr() as *const _].as_ptr(), std::ptr::null());
             gl.CompileShader(fs);
             let mut status = 0;
             gl.GetShaderiv(fs, gl::COMPILE_STATUS, &mut status);
@@ -613,31 +519,15 @@ impl GlShader {
     pub fn draw_elements(&mut self, mode: GLenum, index_count: usize) {
         let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
         unsafe {
-            gl.DrawElements(
-                mode,
-                index_count as GLsizei,
-                gl::UNSIGNED_INT,
-                std::ptr::null::<()>() as *const _,
-            );
+            gl.DrawElements(mode, index_count as GLsizei, gl::UNSIGNED_INT, std::ptr::null::<()>() as *const _);
             check_error(gl, "Failed to draw");
         }
     }
 
-    pub fn draw_elements_instanced(
-        &mut self,
-        mode: GLenum,
-        index_count: usize,
-        instance_count: usize,
-    ) {
+    pub fn draw_elements_instanced(&mut self, mode: GLenum, index_count: usize, instance_count: usize) {
         let gl = self.gl.as_ref().expect("Missing OpenGL Context!");
         unsafe {
-            gl.DrawElementsInstanced(
-                mode,
-                index_count as GLsizei,
-                gl::UNSIGNED_INT,
-                std::ptr::null::<()>() as *const _,
-                instance_count as GLsizei,
-            );
+            gl.DrawElementsInstanced(mode, index_count as GLsizei, gl::UNSIGNED_INT, std::ptr::null::<()>() as *const _, instance_count as GLsizei);
             check_error(gl, "Failed to draw");
         }
     }
@@ -747,19 +637,11 @@ impl GlResource for GlShader {
             unsafe {
                 gl.DetachShader(self.program, self.vs);
                 if !check_error(gl, "Failed to destroy shaders") {
-                    log::debug!(
-                        "Detached vertex shader {} from program {}",
-                        self.vs,
-                        self.program
-                    );
+                    log::debug!("Detached vertex shader {} from program {}", self.vs, self.program);
                 }
                 gl.DetachShader(self.program, self.fs);
                 if !check_error(gl, "Failed to destroy shaders") {
-                    log::debug!(
-                        "Detached fragment shader {} from program {}",
-                        self.fs,
-                        self.program
-                    );
+                    log::debug!("Detached fragment shader {} from program {}", self.fs, self.program);
                 }
                 gl.DeleteShader(self.vs);
                 if !check_error(gl, "Failed to destroy shaders") {
@@ -809,23 +691,13 @@ pub unsafe fn check_error(_gl: &Gl, _description: &str) -> bool {
 pub unsafe fn print_shader_log(gl: &Gl, shader: GLuint) {
     let mut buffer = vec![0u8; 2048];
     let mut length = 0;
-    gl.GetShaderInfoLog(
-        shader,
-        (buffer.len() * size_of::<u8>()) as GLsizei,
-        &mut length,
-        buffer.as_mut_ptr() as *mut _,
-    );
+    gl.GetShaderInfoLog(shader, (buffer.len() * size_of::<u8>()) as GLsizei, &mut length, buffer.as_mut_ptr() as *mut _);
     log::debug!("{}", &String::from_utf8_lossy(&buffer[..length as usize]));
 }
 
 pub unsafe fn print_program_info(gl: &Gl, program: GLuint) {
     let mut buffer = vec![0u8; 2048];
     let mut length = 0;
-    gl.GetProgramInfoLog(
-        program,
-        (buffer.len() * size_of::<u8>()) as GLsizei,
-        &mut length,
-        buffer.as_mut_ptr() as *mut _,
-    );
+    gl.GetProgramInfoLog(program, (buffer.len() * size_of::<u8>()) as GLsizei, &mut length, buffer.as_mut_ptr() as *mut _);
     log::debug!("{}", &String::from_utf8_lossy(&buffer[..length as usize]));
 }

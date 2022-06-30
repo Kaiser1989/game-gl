@@ -78,10 +78,7 @@ pub struct GameLoop<T: Runner> {
 
 impl<T: Runner> GameLoop<T> {
     pub fn new(runner: T) -> GameLoop<T> {
-        Self {
-            runner,
-            device_ctx: None,
-        }
+        Self { runner, device_ctx: None }
     }
 
     pub fn run(&mut self) {
@@ -107,8 +104,7 @@ impl<T: Runner> GameLoop<T> {
 
                 // call resize device callback
                 let resolution = device_ctx.window_context.window().inner_size();
-                self.runner
-                    .resize_device(&device_ctx.gl, resolution.width, resolution.height)
+                self.runner.resize_device(&device_ctx.gl, resolution.width, resolution.height)
             }
         }
 
@@ -169,20 +165,14 @@ impl<T: Runner> GameLoop<T> {
                                 device_ctx.window_context.resize(physical_size);
 
                                 // call resize device callback
-                                self.runner.resize_device(
-                                    &device_ctx.gl,
-                                    physical_size.width,
-                                    physical_size.height,
-                                );
+                                self.runner.resize_device(&device_ctx.gl, physical_size.width, physical_size.height);
                             }
                         }
                         WindowEvent::CloseRequested => {
                             running = false;
                         }
                         WindowEvent::CursorMoved { position, .. } => {
-                            input_events.push(InputEvent::Cursor(CursorEvent {
-                                location: position.into(),
-                            }));
+                            input_events.push(InputEvent::Cursor(CursorEvent { location: position.into() }));
                         }
                         WindowEvent::MouseInput { state, button, .. } => {
                             input_events.push(InputEvent::Mouse(MouseEvent {
@@ -201,8 +191,7 @@ impl<T: Runner> GameLoop<T> {
                     Event::MainEventsCleared => {
                         // update time
                         let new_time = Instant::now();
-                        let elapsed_time =
-                            new_time.duration_since(time).as_millis() as f32 / 1000.0;
+                        let elapsed_time = new_time.duration_since(time).as_millis() as f32 / 1000.0;
                         time = new_time;
 
                         // process input
@@ -215,9 +204,7 @@ impl<T: Runner> GameLoop<T> {
                             self.runner.update(elapsed_time);
 
                             // render call
-                            if let (true, Some(device_ctx)) =
-                                (self.has_render_context(), self.device_ctx.as_mut())
-                            {
+                            if let (true, Some(device_ctx)) = (self.has_render_context(), self.device_ctx.as_mut()) {
                                 // call render callback
                                 self.runner.render(&device_ctx.gl);
 
@@ -276,19 +263,14 @@ impl DeviceContext {
     fn new(el: &EventLoopWindowTarget<()>) -> DeviceContext {
         let wb = WindowBuilder::new().with_title("A fantastic window!");
         let window_context = ContextBuilder::new()
-            .with_gl(GlRequest::Specific(
-                Config::opengl_api_support(),
-                Config::opengl_version_support(),
-            ))
+            .with_gl(GlRequest::Specific(Config::opengl_api_support(), Config::opengl_version_support()))
             //.with_gl_debug_flag(true)
             .with_srgb(Config::srgb_support())
             .with_vsync(Config::vsync_support())
             .build_windowed(wb, el)
             .unwrap();
         let window_context = unsafe { window_context.make_current().unwrap() };
-        let gl = Gl::new(gl::Gles2::load_with(|ptr| {
-            window_context.get_proc_address(ptr) as *const _
-        }));
+        let gl = Gl::new(gl::Gles2::load_with(|ptr| window_context.get_proc_address(ptr) as *const _));
         let device_ctx = DeviceContext { gl, window_context };
         device_ctx.print_context();
         device_ctx
@@ -304,9 +286,7 @@ impl DeviceContext {
 
     fn get_string(&self, gl_enum: GLenum) -> String {
         unsafe {
-            let data = CStr::from_ptr(self.gl.GetString(gl_enum) as *const _)
-                .to_bytes()
-                .to_vec();
+            let data = CStr::from_ptr(self.gl.GetString(gl_enum) as *const _).to_bytes().to_vec();
             String::from_utf8(data).unwrap()
         }
     }
@@ -315,10 +295,7 @@ impl DeviceContext {
 impl Drop for DeviceContext {
     fn drop(&mut self) {
         // only this reference is allowed
-        assert!(
-            Gl::strong_count(&self.gl) == 1,
-            "Error! Unreleased OpenGL resources"
-        );
+        assert!(Gl::strong_count(&self.gl) == 1, "Error! Unreleased OpenGL resources");
     }
 }
 
@@ -340,39 +317,14 @@ fn enable_immersive() {
     let vm = unsafe { jni::JavaVM::from_raw(vm_ptr) }.unwrap();
     let env = vm.attach_current_thread_permanently().unwrap();
     let activity = ndk_glue::native_activity().activity();
-    let window = env
-        .call_method(activity, "getWindow", "()Landroid/view/Window;", &[])
-        .unwrap()
-        .l()
-        .unwrap();
-    let view = env
-        .call_method(window, "getDecorView", "()Landroid/view/View;", &[])
-        .unwrap()
-        .l()
-        .unwrap();
+    let window = env.call_method(activity, "getWindow", "()Landroid/view/Window;", &[]).unwrap().l().unwrap();
+    let view = env.call_method(window, "getDecorView", "()Landroid/view/View;", &[]).unwrap().l().unwrap();
     let view_class = env.find_class("android/view/View").unwrap();
-    let flag_fullscreen = env
-        .get_static_field(view_class, "SYSTEM_UI_FLAG_FULLSCREEN", "I")
-        .unwrap()
-        .i()
-        .unwrap();
-    let flag_hide_navigation = env
-        .get_static_field(view_class, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I")
-        .unwrap()
-        .i()
-        .unwrap();
-    let flag_immersive_sticky = env
-        .get_static_field(view_class, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I")
-        .unwrap()
-        .i()
-        .unwrap();
+    let flag_fullscreen = env.get_static_field(view_class, "SYSTEM_UI_FLAG_FULLSCREEN", "I").unwrap().i().unwrap();
+    let flag_hide_navigation = env.get_static_field(view_class, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I").unwrap().i().unwrap();
+    let flag_immersive_sticky = env.get_static_field(view_class, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I").unwrap().i().unwrap();
     let flag = flag_fullscreen | flag_hide_navigation | flag_immersive_sticky;
-    match env.call_method(
-        view,
-        "setSystemUiVisibility",
-        "(I)V",
-        &[jni::objects::JValue::Int(flag)],
-    ) {
+    match env.call_method(view, "setSystemUiVisibility", "(I)V", &[jni::objects::JValue::Int(flag)]) {
         Err(_) => log::warn!("Failed to enable immersive mode"),
         Ok(_) => {}
     }
