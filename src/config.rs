@@ -1,7 +1,7 @@
 //////////////////////////////////////////////////
 // Using
 
-use glutin::Api;
+use glutin::config::Api;
 
 //////////////////////////////////////////////////
 // Definitions
@@ -39,7 +39,7 @@ impl Config {
         true
     }
     pub fn opengl_api_support() -> Api {
-        Api::OpenGl
+        Api::OPENGL
     }
     pub fn opengl_version_support() -> (u8, u8) {
         (4, 5)

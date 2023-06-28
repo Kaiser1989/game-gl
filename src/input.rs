@@ -73,35 +73,35 @@ pub struct Location {
     pub y: f32,
 }
 
-impl From<glutin::dpi::PhysicalPosition<f64>> for Location {
-    fn from(e: glutin::dpi::PhysicalPosition<f64>) -> Location {
+impl From<winit::dpi::PhysicalPosition<f64>> for Location {
+    fn from(e: winit::dpi::PhysicalPosition<f64>) -> Location {
         Location { x: e.x as f32, y: e.y as f32 }
     }
 }
 
-impl From<glutin::event::ElementState> for MouseState {
-    fn from(e: glutin::event::ElementState) -> MouseState {
+impl From<winit::event::ElementState> for MouseState {
+    fn from(e: winit::event::ElementState) -> MouseState {
         match e {
-            glutin::event::ElementState::Pressed => MouseState::Pressed,
-            glutin::event::ElementState::Released => MouseState::Released,
+            winit::event::ElementState::Pressed => MouseState::Pressed,
+            winit::event::ElementState::Released => MouseState::Released,
         }
     }
 }
 
-impl From<glutin::event::MouseButton> for MouseButton {
-    fn from(e: glutin::event::MouseButton) -> MouseButton {
+impl From<winit::event::MouseButton> for MouseButton {
+    fn from(e: winit::event::MouseButton) -> MouseButton {
         match e {
-            glutin::event::MouseButton::Left => MouseButton::Left,
-            glutin::event::MouseButton::Middle => MouseButton::Middle,
-            glutin::event::MouseButton::Right => MouseButton::Right,
-            glutin::event::MouseButton::Other(x) => MouseButton::Other(x),
+            winit::event::MouseButton::Left => MouseButton::Left,
+            winit::event::MouseButton::Middle => MouseButton::Middle,
+            winit::event::MouseButton::Right => MouseButton::Right,
+            winit::event::MouseButton::Other(x) => MouseButton::Other(x),
         }
     }
 }
 
-impl From<glutin::event::Touch> for TouchEvent {
-    fn from(e: glutin::event::Touch) -> TouchEvent {
-        let glutin::event::Touch { phase, location, id, .. } = e;
+impl From<winit::event::Touch> for TouchEvent {
+    fn from(e: winit::event::Touch) -> TouchEvent {
+        let winit::event::Touch { phase, location, id, .. } = e;
         TouchEvent {
             state: phase.into(),
             location: location.into(),
@@ -110,33 +110,33 @@ impl From<glutin::event::Touch> for TouchEvent {
     }
 }
 
-impl From<glutin::event::TouchPhase> for TouchState {
-    fn from(e: glutin::event::TouchPhase) -> TouchState {
+impl From<winit::event::TouchPhase> for TouchState {
+    fn from(e: winit::event::TouchPhase) -> TouchState {
         match e {
-            glutin::event::TouchPhase::Started => TouchState::Down,
-            glutin::event::TouchPhase::Ended => TouchState::Up,
-            glutin::event::TouchPhase::Moved => TouchState::Move,
-            glutin::event::TouchPhase::Cancelled => TouchState::Cancelled,
+            winit::event::TouchPhase::Started => TouchState::Down,
+            winit::event::TouchPhase::Ended => TouchState::Up,
+            winit::event::TouchPhase::Moved => TouchState::Move,
+            winit::event::TouchPhase::Cancelled => TouchState::Cancelled,
         }
     }
 }
 
-impl From<glutin::event::ElementState> for KeyState {
-    fn from(e: glutin::event::ElementState) -> KeyState {
+impl From<winit::event::ElementState> for KeyState {
+    fn from(e: winit::event::ElementState) -> KeyState {
         match e {
-            glutin::event::ElementState::Pressed => KeyState::Pressed,
-            glutin::event::ElementState::Released => KeyState::Released,
+            winit::event::ElementState::Pressed => KeyState::Pressed,
+            winit::event::ElementState::Released => KeyState::Released,
         }
     }
 }
 
-impl From<glutin::event::KeyboardInput> for KeyboardEvent {
-    fn from(e: glutin::event::KeyboardInput) -> KeyboardEvent {
-        let glutin::event::KeyboardInput { virtual_keycode, state, .. } = e;
+impl From<winit::event::KeyboardInput> for KeyboardEvent {
+    fn from(e: winit::event::KeyboardInput) -> KeyboardEvent {
+        let winit::event::KeyboardInput { virtual_keycode, state, .. } = e;
         KeyboardEvent {
             state: state.into(),
             key: match virtual_keycode {
-                Some(glutin::event::VirtualKeyCode::Back) => Key::Back,
+                Some(winit::event::VirtualKeyCode::Back) => Key::Back,
                 _ => Key::Unknown,
             },
         }

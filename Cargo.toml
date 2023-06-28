@@ -8,13 +8,16 @@ edition = "2018"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-glutin = { git = "https://github.com/Kaiser1989/glutin" }
-image = "0.23.8"
+glutin = "0.30.9"
+winit = "0.28.6"
+glutin-winit = "0.3.0"
+raw-window-handle = "0.5.0"
+image = "0.24.6"
 log = "0.4.11"
 
 [target.'cfg(target_os = "android")'.dependencies]
-ndk-glue = "0.5.0"
-jni = "0.19.0"
+ndk-glue = "0.7.0"
+jni = "0.21.1"
 
 [build-dependencies]
 gl_generator = "0.14.0"

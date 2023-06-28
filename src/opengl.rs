@@ -306,7 +306,7 @@ impl<T: Default> GlUniformBuffer<T> {
 impl GlTexture {
     pub fn new<P, Container>(gl: &Gl, images: &[image::ImageBuffer<P, Container>]) -> GlTexture
     where
-        P: image::Pixel + 'static,
+        P: image::PixelWithColorType + 'static,
         P::Subpixel: 'static,
         Container: std::ops::Deref<Target = [P::Subpixel]>,
     {
@@ -316,7 +316,7 @@ impl GlTexture {
         // get specs from first image
         let img = images.first().unwrap();
         let pixel_type = if size_of::<P::Subpixel>() == 1 { gl::UNSIGNED_BYTE } else { gl::UNSIGNED_SHORT };
-        let (format, internal_format) = match <P as image::Pixel>::COLOR_TYPE {
+        let (format, internal_format) = match <P as image::PixelWithColorType>::COLOR_TYPE {
             image::ColorType::L8 => (gl::RED, gl::R8),
             image::ColorType::Rgb8 => (gl::RGB, gl::RGB8),
             image::ColorType::Rgb16 => (gl::RGB, gl::RGBA16F),
