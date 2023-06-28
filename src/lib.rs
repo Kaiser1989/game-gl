@@ -1,7 +1,6 @@
 //////////////////////////////////////////////////
 // Module
 
-mod config;
 pub mod file;
 pub mod input;
 pub mod opengl;
@@ -28,24 +27,22 @@ pub mod gl {
 
 use std::ffi::{CStr, CString};
 use std::num::NonZeroU32;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Instant;
 
 use winit::event::{Event, WindowEvent};
-use winit::event_loop::EventLoop;
+use winit::event_loop::{EventLoop, EventLoopWindowTarget};
 use winit::window::{Window, WindowBuilder};
 
 use raw_window_handle::HasRawWindowHandle;
 
-use glutin::config::{ConfigTemplateBuilder, GlConfig};
-use glutin::context::{ContextApi, ContextAttributesBuilder, PossiblyCurrentContext};
+use glutin::config::{Config, ConfigTemplateBuilder, GlConfig};
+use glutin::context::{ContextApi, ContextAttributesBuilder, NotCurrentContext};
 use glutin::display::{GetGlDisplay, GlDisplay};
 use glutin::prelude::*;
 use glutin::surface::{Surface, SwapInterval, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
 
-use crate::config::Config;
 use crate::gl::types::*;
 use crate::input::{CursorEvent, InputEvent, MouseEvent};
 
@@ -94,58 +91,12 @@ impl GameLoop {
         // init game loop
         let event_loop = EventLoop::new();
 
-        // // WINDOWS: create context
-        // #[cfg(not(target_os = "android"))]
-        // {
-        //     self.device_ctx = Some(DeviceContext::new(&event_loop));
-        //     if let Some(device_ctx) = self.device_ctx.as_mut() {
-        //         // call create device callback
-        //         self.runner.create_device(&device_ctx.gl);
-
-        //         // call resize device callback
-        //         let resolution = device_ctx.window_context.window().inner_size();
-        //         self.runner.resize_device(&device_ctx.gl, resolution.width, resolution.height)
-        //     }
-        // }
-
-        // // WINDOWS: App is starting paused
-        // #[cfg(target_os = "android")]
-        // let mut paused = true;
-
-        // // WINDOWS: App is starting unpaused
-        // #[cfg(not(target_os = "android"))]
-        // let mut paused = false;
-
-        // create display builder
-        let window_builder = Some(WindowBuilder::new().with_title("A fantastic window!"));
-        let display_builder = DisplayBuilder::new().with_window_builder(window_builder);
-
-        // get display configs
-        let template = ConfigTemplateBuilder::new().with_alpha_size(8).with_transparency(cfg!(cgl_backend));
-        let (mut window, gl_config) = display_builder
-            .build(&event_loop, template, |configs| {
-                // Find the config with the maximum number of samples, so our triangle will
-                // be smooth.
-                configs
-                    .reduce(|accum, config| {
-                        let transparency_check = config.supports_transparency().unwrap_or(false) & !accum.supports_transparency().unwrap_or(false);
-                        if transparency_check || config.num_samples() > accum.num_samples() {
-                            config
-                        } else {
-                            accum
-                        }
-                    })
-                    .unwrap()
-            })
-            .unwrap();
-
-        // create context
-        let raw_window_handle = window.as_ref().map(|window| window.raw_window_handle());
-        let context_attributes = ContextAttributesBuilder::new().with_context_api(ContextApi::Gles(None)).build(raw_window_handle);
-        let mut not_current_gl_context = Some(unsafe { gl_config.display().create_context(&gl_config, &context_attributes).expect("failed to create context") });
+        // create window, gl_config & gl_context
+        let (mut window, gl_config) = Self::create_window(&event_loop);
+        let mut not_current_gl_context = Self::create_gl_context(ContextApi::Gles(None), &gl_config, &window);
+        let mut device_ctx = None;
 
         // start event loop
-        let mut device_ctx = None;
         event_loop.run(move |event, window_target, control_flow| {
             //control_flow.set_poll();
             match event {
@@ -153,13 +104,8 @@ impl GameLoop {
                     #[cfg(android_platform)]
                     println!("Android window available");
 
-                    // init surface for given window
-                    let window = window.take().unwrap_or_else(|| {
-                        let window_builder = WindowBuilder::new().with_transparent(true);
-                        glutin_winit::finalize_window(window_target, window_builder, &gl_config).unwrap()
-                    });
-                    let attrs = window.build_surface_attributes(<_>::default());
-                    let gl_surface = unsafe { gl_config.display().create_window_surface(&gl_config, &attrs).unwrap() };
+                    // create surface
+                    let (gl_surface, window) = Self::create_gl_surface(&mut window, &gl_config, window_target);
 
                     // Make it current.
                     // The context needs to be current for the Renderer to set up shaders and
@@ -177,14 +123,15 @@ impl GameLoop {
                         let ptr = CString::new(ptr).unwrap();
                         gl_context.display().get_proc_address(ptr.as_c_str()).cast()
                     }));
+                    Self::print_context_info(&gl);
 
-                    // Create device context
+                    // Create device context (used as dump storage)
                     assert!(device_ctx.replace((gl, gl_context, gl_surface, window)).is_none());
 
                     // call create device callback
                     runner.create_device(&device_ctx.as_ref().unwrap().0);
                 }
-                Event::Suspended | Event::LoopDestroyed => {
+                Event::Suspended => {
                     // This event is only raised on Android, where the backing NativeWindow for a GL
                     // Surface can appear and disappear at any moment.
                     #[cfg(android_platform)]
@@ -197,10 +144,22 @@ impl GameLoop {
                         // Destroy the GL Surface and un-current the GL Context before ndk-glue releases
                         // the window back to the system.
                         assert!(not_current_gl_context.replace(gl_context.make_not_current().unwrap()).is_none());
-
-                        // only this reference is allowed
                         assert!(Gl::strong_count(&gl) == 1, "Error! Unreleased OpenGL resources");
                     }
+                }
+                Event::LoopDestroyed => {
+                    if let Some((gl, gl_context, ..)) = device_ctx.take() {
+                        // call destroy device callback
+                        runner.destroy_device(&gl);
+
+                        // Destroy the GL Surface and un-current the GL Context before ndk-glue releases
+                        // the window back to the system.
+                        assert!(not_current_gl_context.replace(gl_context.make_not_current().unwrap()).is_none());
+                        assert!(Gl::strong_count(&gl) == 1, "Error! Unreleased OpenGL resources");
+                    }
+
+                    // call cleanup callback
+                    runner.cleanup();
                 }
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::Resized(size) => {
@@ -263,192 +222,57 @@ impl GameLoop {
                 _ => (),
             }
         });
-
-        //     // starting game loop
-        //     let mut running = true;
-        //     while running {
-        //         // check glutin events
-        //         event_loop.run_return(|event, _event_loop, control_flow| {
-        //             *control_flow = ControlFlow::Exit;
-        //             match event {
-        //                 Event::Resumed => {
-        //                     // ANDROID: only create if native window is available
-        //                     #[cfg(target_os = "android")]
-        //                     {
-        //                         // enable immersive mode
-        //                         enable_immersive();
-
-        //                         // create graphics context
-        //                         if self.device_ctx.is_none() && ndk_glue::native_window().is_some() {
-        //                             self.device_ctx = Some(DeviceContext::new(_event_loop));
-        //                             if let Some(device_ctx) = self.device_ctx.as_mut() {
-        //                                 // call create device callback
-        //                                 self.runner.create_device(&device_ctx.gl);
-        //                             }
-        //                         }
-        //                     }
-
-        //                     // call resume callback
-        //                     paused = false;
-        //                 }
-        //                 Event::Suspended => {
-        //                     // call pause callback
-        //                     paused = true;
-
-        //                     // ANDROID: only destroy if native window is available
-        //                     #[cfg(target_os = "android")]
-        //                     {
-        //                         if self.device_ctx.is_some() && ndk_glue::native_window().is_some() {
-        //                             if let Some(device_ctx) = self.device_ctx.as_mut() {
-        //                                 // call destroy device callback
-        //                                 self.runner.destroy_device(&device_ctx.gl);
-        //                             }
-        //                             self.device_ctx = None;
-        //                         }
-        //                     }
-        //                 }
-        //                 Event::WindowEvent { event, .. } => match event {
-        //                     WindowEvent::Resized(physical_size) => {
-        //                         if let Some(device_ctx) = self.device_ctx.as_mut() {
-        //                             device_ctx.window_context.resize(physical_size);
-
-        //                             // call resize device callback
-        //                             self.runner.resize_device(&device_ctx.gl, physical_size.width, physical_size.height);
-        //                         }
-        //                     }
-        //                     WindowEvent::CloseRequested => {
-        //                         running = false;
-        //                     }
-        //                     WindowEvent::CursorMoved { position, .. } => {
-        //                         input_events.push(InputEvent::Cursor(CursorEvent { location: position.into() }));
-        //                     }
-        //                     WindowEvent::MouseInput { state, button, .. } => {
-        //                         input_events.push(InputEvent::Mouse(MouseEvent {
-        //                             state: state.into(),
-        //                             button: button.into(),
-        //                         }));
-        //                     }
-        //                     WindowEvent::Touch(touch) => {
-        //                         input_events.push(InputEvent::Touch(touch.into()));
-        //                     }
-        //                     WindowEvent::KeyboardInput { input, .. } => {
-        //                         input_events.push(InputEvent::Keyboard(input.into()));
-        //                     }
-        //                     _ => (),
-        //                 },
-        //                 Event::MainEventsCleared => {
-        //                     // update time
-        //                     let new_time = Instant::now();
-        //                     let elapsed_time = new_time.duration_since(time).as_millis() as f32 / 1000.0;
-        //                     time = new_time;
-
-        //                     // process input
-        //                     self.runner.input(&input_events);
-        //                     input_events.clear();
-
-        //                     // if app is paused do not call update and render
-        //                     if !paused {
-        //                         // call update callback
-        //                         self.runner.update(elapsed_time);
-
-        //                         // render call
-        //                         if let (true, Some(device_ctx)) = (self.has_render_context(), self.device_ctx.as_mut()) {
-        //                             // call render callback
-        //                             self.runner.render(&device_ctx.gl);
-
-        //                             // swap buffers
-        //                             if device_ctx.window_context.swap_buffers().is_err() {
-        //                                 log::warn!("Corrupted render context, try recovering ...");
-        //                                 self.runner.destroy_device(&device_ctx.gl);
-        //                                 *device_ctx = DeviceContext::new(_event_loop);
-        //                                 self.runner.create_device(&device_ctx.gl);
-        //                                 log::warn!("... recovering successful!");
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //                 _ => (),
-        //             }
-        //         });
-        //     }
-
-        //     // WINDOWS: destroy context
-        //     #[cfg(not(target_os = "android"))]
-        //     {
-        //         if let Some(device_ctx) = self.device_ctx.as_mut() {
-        //             // call destroy device callback
-        //             self.runner.destroy_device(&device_ctx.gl);
-        //         }
-        //         self.device_ctx = None;
-        //     }
-
-        //     // call cleanup callback
-        //     self.runner.cleanup();
-        // }
-
-        // // ANDROID: check if we have render context
-        // #[cfg(target_os = "android")]
-        // fn has_render_context(&self) -> bool {
-        //     self.device_ctx.is_some() && ndk_glue::native_window().is_some()
-        // }
-
-        // // WINDOWS: check if we have render context
-        // #[cfg(not(target_os = "android"))]
-        // fn has_render_context(&self) -> bool {
-        //     self.device_ctx.is_some()
-        // }
-    }
-}
-
-//////////////////////////////////////////////////
-// Internal Device
-
-struct DeviceContext {
-    gl: Gl,
-    gl_context: PossiblyCurrentContext,
-    gl_surface: Surface<WindowSurface>,
-    window: Window,
-}
-
-impl DeviceContext {
-    fn new(gl_context: PossiblyCurrentContext, gl_surface: Surface<WindowSurface>, window: Window) -> DeviceContext {
-        let gl = Gl::new(gl::Gles2::load_with(|ptr| {
-            let ptr = CString::new(ptr).unwrap();
-            gl_context.display().get_proc_address(ptr.as_c_str()).cast()
-        }));
-        let device_ctx = DeviceContext { gl, gl_context, gl_surface, window };
-        device_ctx.print_context();
-        device_ctx
     }
 
-    fn print_context(&self) {
+    fn create_window<T>(event_loop: &EventLoop<T>) -> (Option<Window>, Config) {
+        let window_builder = Some(WindowBuilder::new().with_title("A fantastic window!"));
+        let display_builder = DisplayBuilder::new().with_window_builder(window_builder);
+        let template = ConfigTemplateBuilder::new().with_alpha_size(8).with_transparency(cfg!(cgl_backend));
+        display_builder
+            .build(&event_loop, template, |configs| {
+                // Find the config with the maximum number of samples, so our triangle will
+                // be smooth.
+                configs
+                    .reduce(|accum, config| {
+                        let transparency_check = config.supports_transparency().unwrap_or(false) & !accum.supports_transparency().unwrap_or(false);
+                        if transparency_check || config.num_samples() > accum.num_samples() {
+                            config
+                        } else {
+                            accum
+                        }
+                    })
+                    .unwrap()
+            })
+            .unwrap()
+    }
+
+    fn create_gl_context(api: ContextApi, config: &Config, window: &Option<Window>) -> Option<NotCurrentContext> {
+        let raw_window_handle = window.as_ref().map(|window| window.raw_window_handle());
+        let context_attributes = ContextAttributesBuilder::new().with_context_api(api).build(raw_window_handle);
+        Some(unsafe { config.display().create_context(config, &context_attributes).expect("failed to create context") })
+    }
+
+    fn create_gl_surface<T>(window: &mut Option<Window>, config: &Config, window_target: &EventLoopWindowTarget<T>) -> (Surface<WindowSurface>, Window) {
+        let window = window.take().unwrap_or_else(|| {
+            let window_builder = WindowBuilder::new().with_transparent(true);
+            glutin_winit::finalize_window(window_target, window_builder, &config).unwrap()
+        });
+        let attrs = window.build_surface_attributes(<_>::default());
+        let gl_surface = unsafe { config.display().create_window_surface(config, &attrs).unwrap() };
+        (gl_surface, window)
+    }
+
+    fn print_context_info(gl: &Gl) {
         log::info!("Created OpenGL context:");
-        log::info!("- Version: {:?}", self.get_string(gl::VERSION));
+        log::info!("- Version: {:?}", Self::get_gl_string(gl, gl::VERSION));
         // TODO: print more
     }
 
-    // +++ Starting OpenGL functions
-
-    fn get_string(&self, gl_enum: GLenum) -> String {
+    fn get_gl_string(gl: &Gl, gl_enum: GLenum) -> String {
         unsafe {
-            let data = CStr::from_ptr(self.gl.GetString(gl_enum) as *const _).to_bytes().to_vec();
+            let data = CStr::from_ptr(gl.GetString(gl_enum) as *const _).to_bytes().to_vec();
             String::from_utf8(data).unwrap()
         }
-    }
-}
-
-impl Deref for DeviceContext {
-    type Target = Gl;
-
-    fn deref(&self) -> &Self::Target {
-        &self.gl
-    }
-}
-
-impl Drop for DeviceContext {
-    fn drop(&mut self) {
-        // only this reference is allowed
-        assert!(Gl::strong_count(&self.gl) == 1, "Error! Unreleased OpenGL resources");
     }
 }
 
