@@ -2,6 +2,7 @@
 // Using
 
 use image;
+use std::ffi::CStr;
 use std::mem::size_of;
 
 use crate::gl;
@@ -62,6 +63,8 @@ pub struct GlShader {
     fs: GLuint,
     program: GLuint,
 }
+
+pub struct GlString {}
 
 //////////////////////////////////////////////////
 // Vertex Array Object
@@ -529,6 +532,21 @@ impl GlShader {
         unsafe {
             gl.DrawElementsInstanced(mode, index_count as GLsizei, gl::UNSIGNED_INT, std::ptr::null::<()>() as *const _, instance_count as GLsizei);
             check_error(gl, "Failed to draw");
+        }
+    }
+}
+
+//////////////////////////////////////////////////
+// String
+
+impl GlString {
+    pub fn get(gl: &Gl, gl_enum: GLenum) -> Option<String> {
+        unsafe {
+            let s = gl.GetString(gl_enum);
+            (!s.is_null()).then(|| {
+                let bytes = CStr::from_ptr(s.cast()).to_bytes().to_vec();
+                String::from_utf8(bytes).expect("GetString bytes are not valid UTF8")
+            })
         }
     }
 }

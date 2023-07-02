@@ -1,0 +1,34 @@
+[package]
+name = "game-gl-example"
+version = "0.1.0"
+authors = ["Philipp Kaiser"]
+edition = "2021"
+
+[lib]
+#name = "main"
+crate-type = ["cdylib"]
+
+[[bin]]
+path="src/lib.rs"
+name="game-gl-example"
+required-features = [ "desktop" ]
+
+[features]
+desktop = []
+
+[dependencies]
+game-gl = { path = "../game_gl" }
+log = "0.4.11"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+env_logger = "0.10.0"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android-activity = { version = "0.4.2", features = [ "native-activity" ] }
+android_logger = "0.13.1"
+
+[package.metadata.android]
+build_targets = [ "armv7-linux-androideabi", "aarch64-linux-android", "i686-linux-android", "x86_64-linux-android" ]
+opengles_version_major = 3
+opengles_version_minor = 2
+assets = "assets"
