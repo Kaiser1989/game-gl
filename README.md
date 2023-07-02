@@ -7,8 +7,7 @@ Multiplatform game loop with OpenGL context. This Repository is a try to create 
 All initialization is done for you. All you need to do is starting the game loop, and providing implementations for game loop callbacks:
 ```
 pub fn main() {
-    let mut game_loop = GameLoop::new(ExampleRunner{});
-    game_loop.run();
+    GameLoop::start(ExampleRunner::default());
 }
 ```
 
@@ -84,40 +83,23 @@ ResizeDevice function is called whenever a render context changes its size (reso
 
 ## Installing cargo apk and android targets
 To install the build pipeline and android targets, follow the installation guidline on: 
-https://github.com/rust-windowing/android-rs-glue
-
+[https://github.com/rust-windowing/android-activity](https://github.com/rust-mobile/android-activity)
 <br>
 
 ## Dependencies
-This project is based on bug fixed forks of:
-* glutin 0.28
-* winit 0.26
+This project is based on:
+* glutin 0.30
+* winit 0.28
 
-All these projects were forked to my github. Therefore only the project only consists of git dependencies to my local git repositiories.
-### Why don't you create pull requests in the original projects:
-By following the isses on these crates, i noticed, that developing a working android solution doesn't have any priority (as of today: 17.07.2020). The changes i did are not a valid contribution to make these crates any better or to provide stable solutions for mobile platforms, they are just hacks and workarounds to make the current projects work for Android.
-
-All you need to do, to get your app run on Windows and Android (not testes for IOS) is using these dependencies:
-```
-[dependencies]
-game-gl = { git = "https://github.com/Kaiser1989/game-gl" }
-
-[target.'cfg(target_os = "android")'.dependencies]
-ndk-glue = "0.5.0"
-
-[package.metadata.android]
-build_targets = [ "armv7-linux-androideabi", "aarch64-linux-android", "i686-linux-android", "x86_64-linux-android" ]
-```
-where all sub dependencies are replaces to my bug fixed forks. There is no dependency left to original glutin or winit.
-
+This project used to use bug fixed forks of upper projects. But the projects are finally fixed and can directly be used to create OpenGL render context for at least Windows and Android environments.
 <br>
 
 ## Example
-A running example of this game loop crate can be found at: https://github.com/Kaiser1989/rust-android-example. This example creates a simple game loop rendering a our beautiful lena. It's tested for windows and android.
+A running example of this game loop crate can be found at /game_gl_example. This example creates a simple game loop rendering a our beautiful lenna. It's tested for windows and android (>r23)
 
 <br>
 
 ## Special Thanks
-Special thanks go to @Katyo who started fixing the glutin crate to make it build and of course to the developer of glutin, winit and android-ndk-rs. They do a good job. And the working solution is so close. When they got their issues fixed, this project here is no longer needed.
+Special thanks go to community of winit and glutin, doing all the native windows creation for us.
 
 Feel free to do whatever you want with this ;)
