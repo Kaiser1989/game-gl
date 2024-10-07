@@ -25,7 +25,7 @@ fn android_main(app: AndroidApp) {
 #[cfg(not(target_os = "android"))]
 pub fn main() {
     // init logging
-    let log_level = log::LevelFilter::Trace;
+    let log_level = log::LevelFilter::Debug;
     env_logger::builder()
         .filter_level(log_level) // Default Log Level
         .parse_default_env()

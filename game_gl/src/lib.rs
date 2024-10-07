@@ -29,6 +29,7 @@ pub mod prelude {
 // Using
 
 use std::rc::Rc;
+use std::sync::Mutex;
 use std::time::Instant;
 
 use raw_window_handle::HasRawDisplayHandle;
@@ -52,10 +53,12 @@ use crate::input::{CursorEvent, InputEvent, MouseEvent};
 pub type Gl = Rc<gl::Gles2>;
 
 //////////////////////////////////////////////////
-// Types
+// Global constants
 
 #[cfg(target_os = "android")]
 pub static ANDROID_APP: OnceCell<AndroidApp> = OnceCell::new();
+
+static GAME_LOOP_STATE: Mutex<GameLoopState> = Mutex::new(GameLoopState { running: false });
 
 //////////////////////////////////////////////////
 // Traits
@@ -81,6 +84,24 @@ pub trait Runner: Default {
 //////////////////////////////////////////////////
 // Game loop
 
+pub struct GameLoopState {
+    running: bool,
+}
+
+impl GameLoopState {
+    fn enable(&mut self) {
+        self.running = true;
+    }
+
+    fn disable(&mut self) {
+        self.running = false;
+    }
+
+    fn is_running(&self) -> bool {
+        self.running
+    }
+}
+
 pub struct GameLoop {}
 
 #[cfg(target_os = "android")]
@@ -90,11 +111,6 @@ impl GameLoop {
         let event_loop = EventLoopBuilder::new().with_android_app(app).build();
         GameLoop::run(event_loop, runner);
     }
-
-    pub fn stop() {
-        // TODO: android exit
-        std::process::exit(0);
-    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -103,15 +119,19 @@ impl GameLoop {
         let event_loop = EventLoopBuilder::new().build();
         GameLoop::run(event_loop, runner);
     }
-
-    pub fn stop() {
-        std::process::exit(0);
-    }
 }
 
 impl GameLoop {
+    pub fn stop() {
+        GAME_LOOP_STATE.lock().unwrap().disable();
+        std::process::exit(0);
+    }
+
     pub fn run<R: Runner + 'static>(event_loop: EventLoop<()>, mut runner: R) {
         log::trace!("Initializing application...");
+
+        // enable game loop state
+        GAME_LOOP_STATE.lock().unwrap().enable();
 
         // init application
         let raw_display = event_loop.raw_display_handle();
@@ -130,7 +150,7 @@ impl GameLoop {
         event_loop.run(move |event, event_loop, control_flow| {
             log::trace!("Received Winit event: {event:?}");
 
-            *control_flow = ControlFlow::Wait;
+            *control_flow = ControlFlow::Poll;
             match event {
                 Event::Resumed => {
                     app.resume(event_loop);
@@ -165,6 +185,11 @@ impl GameLoop {
 
                     // call update callback
                     runner.update(elapsed_time);
+
+                    // check if loop has stopped
+                    if !GAME_LOOP_STATE.lock().unwrap().is_running() {
+                        control_flow.set_exit();
+                    }
                 }
                 Event::LoopDestroyed => {
                     // non android device does not get a suspend event
@@ -216,26 +241,3 @@ impl std::fmt::Debug for gl::Gles2 {
         f.debug_struct("Gles2").finish()
     }
 }
-
-//////////////////////////////////////////////////
-// Enable Immersive mode
-
-// #[cfg(target_os = "android")]
-// fn enable_immersive() {
-//     let vm_ptr = ndk_glue::native_activity().vm();
-//     let vm = unsafe { jni::JavaVM::from_raw(vm_ptr) }.unwrap();
-//     let env = vm.attach_current_thread_permanently().unwrap();
-//     let activity = ndk_glue::native_activity().activity();
-//     let window = env.call_method(activity, "getWindow", "()Landroid/view/Window;", &[]).unwrap().l().unwrap();
-//     let view = env.call_method(window, "getDecorView", "()Landroid/view/View;", &[]).unwrap().l().unwrap();
-//     let view_class = env.find_class("android/view/View").unwrap();
-//     let flag_fullscreen = env.get_static_field(view_class, "SYSTEM_UI_FLAG_FULLSCREEN", "I").unwrap().i().unwrap();
-//     let flag_hide_navigation = env.get_static_field(view_class, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I").unwrap().i().unwrap();
-//     let flag_immersive_sticky = env.get_static_field(view_class, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I").unwrap().i().unwrap();
-//     let flag = flag_fullscreen | flag_hide_navigation | flag_immersive_sticky;
-//     match env.call_method(view, "setSystemUiVisibility", "(I)V", &[jni::objects::JValue::Int(flag)]) {
-//         Err(_) => log::warn!("Failed to enable immersive mode"),
-//         Ok(_) => {}
-//     }
-//     env.exception_clear().unwrap();
-// }
