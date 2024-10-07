@@ -93,9 +93,9 @@ impl Runner for ExampleRunner {
                     GameLoop::stop();
                 }
                 (KeyState::Pressed, Key::Unknown) => {
-                    GameLoop::stop();
+                    log::debug!("Unkown key pressed, complete key list!");
                 }
-                _ => (),
+                _ => {}
             },
         });
     }
