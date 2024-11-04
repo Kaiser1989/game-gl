@@ -3,3 +3,6 @@ members = [
     "game_gl",
     "game_gl_example",
 ]
+
+[profile.dev]
+debug = true

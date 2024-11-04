@@ -9,9 +9,7 @@ crate-type = ["lib", "cdylib"]
 
 [features]
 default = ["egl", "glx", "x11", "wayland", "wgl"]
-
 desktop = []
-
 egl = ["glutin/egl"]
 glx = ["glutin/glx", "glutin/x11", "winit/x11", "x11"]
 wgl = ["glutin/wgl"]
