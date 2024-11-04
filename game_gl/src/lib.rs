@@ -5,7 +5,6 @@ pub mod app;
 pub mod file;
 pub mod input;
 pub mod opengl;
-pub mod runner;
 
 //////////////////////////////////////////////////
 // OpenGL binding
@@ -21,7 +20,7 @@ pub mod gl {
 pub mod prelude {
     pub use crate::gl;
     pub use crate::gl::types::*;
-    pub use crate::{input::InputEvent, GameLoop, Gl, Runner};
+    pub use crate::{input::InputEvent, Game, GameContext, GameLoop, Gl};
     pub use image;
     #[cfg(target_os = "android")]
     pub use winit::platform::android::activity::AndroidApp;
@@ -30,27 +29,24 @@ pub mod prelude {
 //////////////////////////////////////////////////
 // Using
 
+use std::convert::TryInto;
 use std::rc::Rc;
 use std::time::Instant;
 
-use glutin::config::ConfigTemplateBuilder;
-use glutin_winit::DisplayBuilder;
-use raw_window_handle::{HasDisplayHandle, HasRawDisplayHandle};
+use file::Files;
+use input::{CursorEvent, MouseEvent};
+use log::LevelFilter;
+use winit::application::ApplicationHandler;
+use winit::event::WindowEvent;
+use winit::event_loop::{ActiveEventLoop, EventLoop};
 
-use runner::Runner;
-use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder};
-
-#[cfg(target_os = "android")]
-use once_cell::sync::OnceCell;
 #[cfg(target_os = "android")]
 use winit::platform::android::activity::AndroidApp;
 #[cfg(target_os = "android")]
 use winit::platform::android::EventLoopBuilderExtAndroid;
-use winit::window::Window;
 
 use crate::app::App;
-use crate::input::{CursorEvent, InputEvent, MouseEvent};
+use crate::input::InputEvent;
 
 //////////////////////////////////////////////////
 // Types
@@ -58,200 +54,228 @@ use crate::input::{CursorEvent, InputEvent, MouseEvent};
 pub type Gl = Rc<gl::Gles2>;
 
 //////////////////////////////////////////////////
-// Types
+// Definition
 
-#[cfg(target_os = "android")]
-pub static ANDROID_APP: OnceCell<AndroidApp> = OnceCell::new();
+pub struct Game<L: GameLoop> {
+    app: Option<App>,
+    game_loop: L,
+    game_time: Instant,
+    game_context: GameContext,
+    input_events: Vec<InputEvent>,
+}
+
+pub struct GameContext {
+    #[cfg(target_os = "android")]
+    android_app: AndroidApp,
+    request_quit: bool,
+}
+
+pub trait GameLoop: Default {
+    fn title(&self) -> &str;
+
+    fn init(&mut self, ctx: &mut GameContext);
+
+    fn cleanup(&mut self, ctx: &mut GameContext);
+
+    fn input(&mut self, ctx: &mut GameContext, input_events: &[InputEvent]);
+
+    fn update(&mut self, ctx: &mut GameContext, elapsed_time: f32);
+
+    fn render(&mut self, ctx: &mut GameContext, gl: &Gl);
+
+    fn create_device(&mut self, ctx: &mut GameContext, gl: &Gl);
+
+    fn destroy_device(&mut self, ctx: &mut GameContext, gl: &Gl);
+
+    fn resize_device(&mut self, ctx: &mut GameContext, gl: &Gl, width: u32, height: u32);
+}
 
 //////////////////////////////////////////////////
-// Game loop
-
-pub struct GameLoop {}
+// Implementation
 
 #[cfg(target_os = "android")]
-impl GameLoop {
-    pub fn start<R: Runner + 'static>(app: AndroidApp, runner: R) {
-        ANDROID_APP.set(app.clone()).unwrap();
-        let event_loop = EventLoop::builder().with_android_app(app).build().unwrap();
-        GameLoop::run(event_loop, runner);
+impl GameContext {
+    pub fn new(android_app: AndroidApp) -> Self {
+        GameContext { android_app, request_quit: false }
     }
 
-    pub fn stop() {
-        // TODO: android exit
-        std::process::exit(0);
+    pub fn files(&self) -> Files {
+        Files::new(&self.android_app)
     }
 }
 
 #[cfg(not(target_os = "android"))]
-impl GameLoop {
-    pub fn start<R: Runner + 'static>(runner: R) {
-        let event_loop = EventLoop::builder().build().unwrap();
-        GameLoop::run(event_loop, runner);
+impl GameContext {
+    pub fn new() -> Self {
+        GameContext { request_quit: false }
     }
 
-    pub fn stop() {
-        std::process::exit(0);
+    pub fn files(&self) -> Files {
+        Files::new()
     }
 }
 
-impl GameLoop {
-    pub fn run<R: Runner + 'static>(event_loop: EventLoop<()>, mut runner: R) {
-        log::trace!("Initializing application...");
+impl GameContext {
+    pub fn exit(&mut self) {
+        self.request_quit = true;
+    }
+
+    fn request_quit(&self) -> bool {
+        self.request_quit
+    }
+}
+
+#[cfg(target_os = "android")]
+impl<L: GameLoop> Game<L> {
+    pub fn new(android_app: AndroidApp, game_loop: L) -> Self {
+        Self {
+            app: None,
+            game_loop,
+            game_time: Instant::now(),
+            game_context: GameContext::new(android_app),
+            input_events: Vec::with_capacity(10),
+        }
+    }
+
+    pub fn with_logging(self) -> Self {
+        android_logger::init_once(android_logger::Config::default().with_max_level(LevelFilter::Debug));
+        self
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+impl<L: GameLoop> Game<L> {
+    pub fn new(game_loop: L) -> Self {
+        Self {
+            app: None,
+            game_loop,
+            game_time: Instant::now(),
+            game_context: GameContext::new(),
+            input_events: Vec::with_capacity(10),
+        }
+    }
+
+    pub fn with_logging(self) -> Self {
+        env_logger::builder()
+            .filter_level(LevelFilter::Debug) // Default Log Level
+            .parse_default_env()
+            .init();
+        self
+    }
+}
+
+impl<L: GameLoop> Game<L> {
+    pub fn init(&mut self) {
+        log::info!("Initializing application...");
+
+        #[cfg(target_os = "android")]
+        let event_loop = EventLoop::builder().with_android_app(self.game_context.android_app.clone()).build().unwrap();
+        #[cfg(not(target_os = "android"))]
+        let event_loop = EventLoop::builder().build().unwrap();
 
         // init application
         let template = glutin::config::ConfigTemplateBuilder::new().with_alpha_size(8).with_transparency(cfg!(cgl_backend));
-        let window = winit::window::Window::default_attributes()
-            .with_transparent(true)
-            .with_title("Glutin triangle gradient example (press Escape to exit)");
-        let display_builder = glutin_winit::DisplayBuilder::new().with_window_attributes(Some(window));
-
-        let mut app = App::new(template, display_builder);
+        let window = winit::window::Window::default_attributes().with_transparent(true).with_title(self.game_loop.title());
+        self.app = Some(App::new(template, window));
 
         // call init callback
-        runner.init();
+        self.game_loop.init(&mut self.game_context);
 
-        // init input
-        let mut input_events: Vec<InputEvent> = Vec::with_capacity(10);
+        // init game time
+        self.game_time = Instant::now();
 
-        // start game time
-        let mut time = Instant::now();
-
-        log::trace!("Running mainloop...");
-        event_loop.run_app(&mut app);
-        event_loop.run(move |event, event_loop, control_flow| {
-            log::trace!("Received Winit event: {event:?}");
-
-            *control_flow = ControlFlow::Wait;
-            match event {
-                Event::Resumed => {
-                    app.resume(event_loop);
-                    runner.create_device(app.renderer());
-                }
-                Event::Suspended => {
-                    runner.destroy_device(app.renderer());
-                    app.suspend();
-                }
-                Event::RedrawRequested(_) => {
-                    log::trace!("Handling Redraw Request");
-                    if app.has_surface_and_context() {
-                        if app.has_renderer() {
-                            // call init callback
-                            runner.render(app.renderer());
-
-                            // swap buffers
-                            app.swap_buffers();
-                        }
-                        app.queue_redraw();
-                    }
-                }
-                Event::MainEventsCleared => {
-                    // update time
-                    let new_time = Instant::now();
-                    let elapsed_time = new_time.duration_since(time).as_millis() as f32 / 1000.0;
-                    time = new_time;
-
-                    // call input callback
-                    runner.input(&input_events);
-                    input_events.clear();
-
-                    // call update callback
-                    runner.update(elapsed_time);
-                }
-                Event::LoopDestroyed => {
-                    // non android device does not get a suspend event
-                    #[cfg(not(target_os = "android"))]
-                    {
-                        runner.destroy_device(app.renderer());
-                        app.suspend();
-                    }
-                    runner.cleanup();
-                }
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::Resized(size) => {
-                        if size.width != 0 && size.height != 0 {
-                            runner.resize_device(app.renderer(), size.width, size.height);
-                        }
-                        app.queue_redraw();
-                    }
-                    WindowEvent::CursorMoved { position, .. } => {
-                        input_events.push(InputEvent::Cursor(CursorEvent { location: position.into() }));
-                    }
-                    WindowEvent::MouseInput { state, button, .. } => {
-                        input_events.push(InputEvent::Mouse(MouseEvent {
-                            state: state.into(),
-                            button: button.into(),
-                        }));
-                    }
-                    WindowEvent::Touch(touch) => {
-                        input_events.push(InputEvent::Touch(touch.into()));
-                    }
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        input_events.push(InputEvent::Keyboard(input.into()));
-                    }
-                    WindowEvent::CloseRequested => {
-                        control_flow.set_exit();
-                    }
-                    _ => (),
-                },
-                _ => {}
-            }
-        });
+        log::info!("Running mainloop...");
+        event_loop.run_app(self).unwrap();
     }
 }
 
-pub struct AppHandler {
-    app: App,
-}
-
-impl AppHandler {
-    pub fn new(app: App) -> Self {
-        AppHandler { app }
-    }
-}
-
-impl ApplicationHandler for AppHandler {
+impl<L: GameLoop> ApplicationHandler for Game<L> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        self.resume(event_loop);
+        if let Some(app) = self.app.as_mut() {
+            app.resume(event_loop);
+            self.game_loop.create_device(&mut self.game_context, app.renderer());
+        }
     }
 
     fn suspended(&mut self, event_loop: &ActiveEventLoop) {
         let _ = event_loop;
-        self.suspend();
+
+        if let Some(app) = self.app.as_mut() {
+            self.game_loop.destroy_device(&mut self.game_context, app.renderer());
+            app.suspend();
+        }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: winit::window::WindowId, event: WindowEvent) {
         match event {
-            WindowEvent::Resized(size) if size.width != 0 && size.height != 0 => {
-                self.resize(size);
-
-                // TODO: RESIZE
+            WindowEvent::RedrawRequested => {
+                if let Some(app) = self.app.as_mut() {
+                    self.game_loop.render(&mut self.game_context, app.renderer());
+                    app.swap_buffers();
+                }
             }
-            WindowEvent::CloseRequested
-            | WindowEvent::KeyboardInput {
-                event: KeyEvent {
-                    logical_key: Key::Named(NamedKey::Escape),
-                    ..
-                },
-                ..
-            } => event_loop.exit(),
+            WindowEvent::Resized(size) if size.width != 0 && size.height != 0 => {
+                if let Some(app) = self.app.as_mut() {
+                    app.resize(size);
+                    self.game_loop.resize_device(&mut self.game_context, app.renderer(), size.width, size.height);
+                }
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                self.input_events.push(InputEvent::Cursor(CursorEvent { location: position.into() }));
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.input_events.push(InputEvent::Mouse(MouseEvent {
+                    state: state.into(),
+                    button: button.into(),
+                }));
+            }
+            WindowEvent::Touch(touch) => {
+                self.input_events.push(InputEvent::Touch(touch.into()));
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if let Ok(event) = event.try_into() {
+                    self.input_events.push(InputEvent::Keyboard(event));
+                }
+            }
+            WindowEvent::CloseRequested => event_loop.exit(),
             _ => (),
         }
-    }
-
-    fn exiting(&mut self, event_loop: &ActiveEventLoop) {
-        let _ = event_loop;
-
-        // CLEAN UP
-
-        self.exit();
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         let _ = event_loop;
 
-        // DRAW
+        // update time
+        let new_time = Instant::now();
+        let elapsed_time = new_time.duration_since(self.game_time).as_millis() as f32 / 1000.0;
+        self.game_time = new_time;
 
-        self.swap_buffers();
+        // call input callback
+        self.game_loop.input(&mut self.game_context, &self.input_events);
+        self.input_events.clear();
+
+        // call update callback
+        self.game_loop.update(&mut self.game_context, elapsed_time);
+
+        if self.game_context.request_quit() {
+            event_loop.exit();
+        }
+    }
+
+    fn exiting(&mut self, event_loop: &ActiveEventLoop) {
+        log::info!("Exiting application...");
+
+        let _ = event_loop;
+
+        // call suspend
+        self.suspended(event_loop);
+
+        // cleanup
+        if let Some(app) = self.app.as_mut() {
+            self.game_loop.cleanup(&mut self.game_context);
+            app.exit();
+        }
+        self.app = None;
     }
 }
 

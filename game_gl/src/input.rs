@@ -1,6 +1,8 @@
 //////////////////////////////////////////////////
 // Input
 
+use std::convert::TryFrom;
+
 #[derive(Debug, Copy, Clone)]
 pub enum InputEvent {
     Cursor(CursorEvent),
@@ -51,6 +53,9 @@ pub enum TouchState {
     Cancelled,
 }
 
+// use winit physical key codes
+pub type Key = winit::keyboard::KeyCode;
+
 #[derive(Debug, Copy, Clone)]
 pub struct KeyboardEvent {
     pub state: KeyState,
@@ -61,12 +66,6 @@ pub struct KeyboardEvent {
 pub enum KeyState {
     Pressed,
     Released,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum Key {
-    Back,
-    Unknown,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -134,15 +133,15 @@ impl From<winit::event::ElementState> for KeyState {
     }
 }
 
-impl From<winit::event::KeyEvent> for KeyboardEvent {
-    fn from(e: winit::event::KeyEvent) -> KeyboardEvent {
+impl TryFrom<winit::event::KeyEvent> for KeyboardEvent {
+    type Error = ();
+
+    fn try_from(e: winit::event::KeyEvent) -> Result<KeyboardEvent, ()> {
         let winit::event::KeyEvent { physical_key, state, .. } = e;
-        KeyboardEvent {
-            state: state.into(),
-            key: match physical_key {
-                winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Backspace) => Key::Back,
-                _ => Key::Unknown,
-            },
+        match physical_key {
+            winit::keyboard::PhysicalKey::Code(x) => Ok(x),
+            _ => Err(()),
         }
+        .map(|code| KeyboardEvent { state: state.into(), key: code })
     }
 }

@@ -9,8 +9,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [[bin]]
-path = "src/lib.rs"
 name = "game-gl-example"
+path = "src/lib.rs"
 required-features = ["desktop"]
 
 [features]
@@ -19,13 +19,6 @@ desktop = []
 [dependencies]
 game-gl = { path = "../game_gl" }
 log = "0.4.11"
-
-[target.'cfg(not(target_os = "android"))'.dependencies]
-env_logger = "0.11.5"
-
-[target.'cfg(target_os = "android")'.dependencies]
-android-activity = { version = "0.6.0", features = ["native-activity"] }
-android_logger = "0.14.1"
 
 [package.metadata.android]
 build_targets = [
@@ -37,3 +30,5 @@ build_targets = [
 opengles_version_major = 3
 opengles_version_minor = 2
 assets = "assets"
+path = "src/lib.rs"
+name = "game-gl-example"

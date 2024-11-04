@@ -6,13 +6,11 @@ use std::ffi::CString;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 
-use glutin_winit::{DisplayBuilder, GlWindow};
+use glutin_winit::GlWindow;
 use raw_window_handle::HasWindowHandle;
 
 use winit::dpi::PhysicalSize;
 use winit::event_loop::ActiveEventLoop;
-#[cfg(glx_backend)]
-use winit::platform::unix;
 
 use glutin::config::{Config, ConfigTemplateBuilder, GetGlConfig};
 use glutin::context::{ContextApi, ContextAttributesBuilder, NotCurrentContext, Version};
@@ -39,6 +37,7 @@ struct AppState {
 
 pub struct App {
     template: ConfigTemplateBuilder,
+    window: WindowAttributes,
     display: GlDisplayCreationState,
     context: Option<glutin::context::PossiblyCurrentContext>,
     state: Option<AppState>,
@@ -48,7 +47,7 @@ pub struct App {
 
 enum GlDisplayCreationState {
     /// The display was not build yet.
-    Builder(DisplayBuilder),
+    Build,
     /// The display was already created for the application.
     Init,
 }
@@ -57,10 +56,11 @@ enum GlDisplayCreationState {
 // Implementations
 
 impl App {
-    pub fn new(template: ConfigTemplateBuilder, display_builder: DisplayBuilder) -> Self {
+    pub fn new(template: ConfigTemplateBuilder, window: WindowAttributes) -> Self {
         Self {
             template,
-            display: GlDisplayCreationState::Builder(display_builder),
+            window,
+            display: GlDisplayCreationState::Build,
             exit_state: Ok(()),
             context: None,
             state: None,
@@ -71,11 +71,12 @@ impl App {
 
 impl App {
     fn create_window(&mut self, event_loop: &ActiveEventLoop) -> Option<(Window, Config)> {
-        let (window, gl_config) = match &self.display {
+        let (window, gl_config) = match self.display {
             // We just created the event loop, so initialize the display, pick the config, and
             // create the context.
-            GlDisplayCreationState::Builder(display_builder) => {
-                let (window, gl_config) = match display_builder.clone().build(event_loop, self.template.clone(), gl_config_picker) {
+            GlDisplayCreationState::Build => {
+                let display_builder = glutin_winit::DisplayBuilder::new().with_window_attributes(Some(self.window.clone()));
+                let (window, gl_config) = match display_builder.build(event_loop, self.template.clone(), gl_config_picker) {
                     Ok((window, gl_config)) => (window.unwrap(), gl_config),
                     Err(err) => {
                         self.exit_state = Err(err);
@@ -84,7 +85,7 @@ impl App {
                     }
                 };
 
-                println!("Picked a config with {} samples", gl_config.num_samples());
+                log::debug!("Picked a config with {} samples", gl_config.num_samples());
 
                 // Mark the display as initialized to not recreate it on resume, since the
                 // display is valid until we explicitly destroy it.
@@ -96,10 +97,9 @@ impl App {
                 (window, gl_config)
             }
             GlDisplayCreationState::Init => {
-                println!("Recreating window in `resumed`");
                 // Pick the config which we already use for the context.
                 let gl_config = self.context.as_ref().unwrap().config();
-                match glutin_winit::finalize_window(event_loop, window_attributes(), &gl_config) {
+                match glutin_winit::finalize_window(event_loop, self.window.clone(), &gl_config) {
                     Ok(window) => (window, gl_config),
                     Err(err) => {
                         self.exit_state = Err(err.into());
@@ -120,21 +120,21 @@ impl App {
             }));
 
             if let Some(renderer) = GlString::get(&gl, gl::RENDERER) {
-                log::info!("Running on {}", renderer);
+                log::debug!("Running on {}", renderer);
             }
             if let Some(version) = GlString::get(&gl, gl::VERSION) {
-                log::info!("OpenGL Version {}", version);
+                log::debug!("OpenGL Version {}", version);
             }
 
             if let Some(shaders_version) = GlString::get(&gl, gl::SHADING_LANGUAGE_VERSION) {
-                log::info!("Shaders version on {}", shaders_version);
+                log::debug!("Shaders version on {}", shaders_version);
             }
             gl
         });
     }
 
     pub fn resume(&mut self, event_loop: &ActiveEventLoop) {
-        log::debug!("Android window resumed");
+        log::debug!("Window resumed");
 
         let (window, gl_config) = self.create_window(event_loop).unwrap();
         let attrs = window.build_surface_attributes(Default::default()).expect("Failed to build surface attributes");
@@ -159,7 +159,7 @@ impl App {
     pub fn suspend(&mut self) {
         // This event is only raised on Android, where the backing NativeWindow for a GL
         // Surface can appear and disappear at any moment.
-        log::debug!("Android window removed");
+        log::debug!("Window removed");
 
         // Destroy the GL Surface and un-current the GL Context before ndk-glue releases
         // the window back to the system.
@@ -216,12 +216,6 @@ impl App {
     pub fn renderer(&self) -> &Gl {
         self.renderer.as_ref().expect("Renderer is not ready")
     }
-}
-
-fn window_attributes() -> WindowAttributes {
-    Window::default_attributes()
-        .with_transparent(true)
-        .with_title("Glutin triangle gradient example (press Escape to exit)")
 }
 
 pub fn gl_config_picker(configs: Box<dyn Iterator<Item = Config> + '_>) -> Config {

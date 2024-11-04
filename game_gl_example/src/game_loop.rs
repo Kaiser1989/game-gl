@@ -3,7 +3,6 @@
 
 use std::mem::size_of;
 
-use game_gl::file::File;
 use game_gl::input::*;
 use game_gl::opengl::*;
 use game_gl::prelude::*;
@@ -48,7 +47,7 @@ void main() {
 // Runner
 
 #[derive(Debug, Default)]
-pub struct ExampleRunner {
+pub struct ExampleGameLoop {
     vao: GlVertexArrayObject,
     vbo: GlVertexBuffer<[f32; 4]>,
     ibo: GlIndexBuffer,
@@ -58,26 +57,30 @@ pub struct ExampleRunner {
     resolution: (GLsizei, GLsizei),
 }
 
-impl ExampleRunner {
-    pub fn new() -> ExampleRunner {
+impl ExampleGameLoop {
+    pub fn new() -> ExampleGameLoop {
         Default::default()
     }
 }
 
-impl Runner for ExampleRunner {
-    fn init(&mut self) {
+impl GameLoop for ExampleGameLoop {
+    fn title(&self) -> &str {
+        "Test Example"
+    }
+
+    fn init(&mut self, _ctx: &mut GameContext) {
         log::debug!("init");
     }
 
-    fn cleanup(&mut self) {
+    fn cleanup(&mut self, _ctx: &mut GameContext) {
         log::debug!("cleanup");
     }
 
-    fn update(&mut self, _elapsed_time: f32) {
-        log::debug!("update");
+    fn update(&mut self, _ctx: &mut GameContext, _elapsed_time: f32) {
+        //log::debug!("update");
     }
 
-    fn input(&mut self, input_events: &[InputEvent]) {
+    fn input(&mut self, ctx: &mut GameContext, input_events: &[InputEvent]) {
         input_events.iter().for_each(|input_event| match input_event {
             InputEvent::Cursor(event) => {
                 log::debug!("{:?}", event);
@@ -89,19 +92,16 @@ impl Runner for ExampleRunner {
                 log::debug!("{:?}", event);
             }
             InputEvent::Keyboard(KeyboardEvent { state, key }) => match (state, key) {
-                (KeyState::Released, Key::Back) => {
-                    GameLoop::stop();
-                }
-                (KeyState::Pressed, Key::Unknown) => {
-                    log::debug!("Unkown key pressed, complete key list!");
+                (KeyState::Released, Key::Escape) => {
+                    ctx.exit();
                 }
                 _ => {}
             },
         });
     }
 
-    fn render(&mut self, gl: &Gl) {
-        log::debug!("render");
+    fn render(&mut self, _ctx: &mut GameContext, gl: &Gl) {
+        //log::debug!("render");
         unsafe {
             gl.ClearColor(1.0, 0.0, 0.0, 1.0);
             gl.ClearDepthf(1.0);
@@ -136,7 +136,7 @@ impl Runner for ExampleRunner {
         }
     }
 
-    fn create_device(&mut self, gl: &Gl) {
+    fn create_device(&mut self, ctx: &mut GameContext, gl: &Gl) {
         log::debug!("create_device");
 
         // create resources
@@ -151,7 +151,8 @@ impl Runner for ExampleRunner {
         self.ubo = GlUniformBuffer::new(gl, gl::DYNAMIC_DRAW, &(0.0, 0.0, 0.0, 0.0));
         self.ubo.update(&(0.5, 0.9, 0.9, 1.0));
 
-        let image = image::load_from_memory(&File::load_bytes("lena.png").unwrap()).unwrap().to_rgba8();
+        let buffer = ctx.files().load_bytes("lena.png").unwrap();
+        let image = image::load_from_memory(&buffer).unwrap().to_rgba8();
         self.texture = GlTexture::new(gl, &[image]);
 
         self.shader = GlShader::new(gl, VS, FS);
@@ -163,7 +164,7 @@ impl Runner for ExampleRunner {
         self.vao.unbind();
     }
 
-    fn destroy_device(&mut self, _gl: &Gl) {
+    fn destroy_device(&mut self, _ctx: &mut GameContext, _gl: &Gl) {
         log::debug!("destroy_device");
 
         self.vao.release();
@@ -174,7 +175,7 @@ impl Runner for ExampleRunner {
         self.shader.release();
     }
 
-    fn resize_device(&mut self, _gl: &Gl, width: u32, height: u32) {
+    fn resize_device(&mut self, _ctx: &mut GameContext, _gl: &Gl, width: u32, height: u32) {
         log::debug!("resize_device ({} x {})", width, height);
         self.resolution = (width as GLsizei, height as GLsizei);
     }
