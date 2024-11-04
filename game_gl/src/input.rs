@@ -31,6 +31,8 @@ pub enum MouseButton {
     Left,
     Middle,
     Right,
+    Back,
+    Forward,
     Other(u16),
 }
 
@@ -94,6 +96,8 @@ impl From<winit::event::MouseButton> for MouseButton {
             winit::event::MouseButton::Left => MouseButton::Left,
             winit::event::MouseButton::Middle => MouseButton::Middle,
             winit::event::MouseButton::Right => MouseButton::Right,
+            winit::event::MouseButton::Back => MouseButton::Back,
+            winit::event::MouseButton::Forward => MouseButton::Forward,
             winit::event::MouseButton::Other(x) => MouseButton::Other(x),
         }
     }
@@ -130,13 +134,13 @@ impl From<winit::event::ElementState> for KeyState {
     }
 }
 
-impl From<winit::event::KeyboardInput> for KeyboardEvent {
-    fn from(e: winit::event::KeyboardInput) -> KeyboardEvent {
-        let winit::event::KeyboardInput { virtual_keycode, state, .. } = e;
+impl From<winit::event::KeyEvent> for KeyboardEvent {
+    fn from(e: winit::event::KeyEvent) -> KeyboardEvent {
+        let winit::event::KeyEvent { physical_key, state, .. } = e;
         KeyboardEvent {
             state: state.into(),
-            key: match virtual_keycode {
-                Some(winit::event::VirtualKeyCode::Back) => Key::Back,
+            key: match physical_key {
+                winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Backspace) => Key::Back,
                 _ => Key::Unknown,
             },
         }

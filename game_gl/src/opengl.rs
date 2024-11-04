@@ -320,11 +320,11 @@ impl GlTexture {
         let img = images.first().unwrap();
         let pixel_type = if size_of::<P::Subpixel>() == 1 { gl::UNSIGNED_BYTE } else { gl::UNSIGNED_SHORT };
         let (format, internal_format) = match <P as image::PixelWithColorType>::COLOR_TYPE {
-            image::ColorType::L8 => (gl::RED, gl::R8),
-            image::ColorType::Rgb8 => (gl::RGB, gl::RGB8),
-            image::ColorType::Rgb16 => (gl::RGB, gl::RGBA16F),
-            image::ColorType::Rgba8 => (gl::RGBA, gl::RGBA8),
-            image::ColorType::Rgba16 => (gl::RGBA, gl::RGBA16F),
+            image::ExtendedColorType::L8 => (gl::RED, gl::R8),
+            image::ExtendedColorType::Rgb8 => (gl::RGB, gl::RGB8),
+            image::ExtendedColorType::Rgb16 => (gl::RGB, gl::RGBA16F),
+            image::ExtendedColorType::Rgba8 => (gl::RGBA, gl::RGBA8),
+            image::ExtendedColorType::Rgba16 => (gl::RGBA, gl::RGBA16F),
             _ => unimplemented!(),
         };
         let num_mip_map = 1 + (img.width().min(img.height()) as f32).log2().floor() as i32;

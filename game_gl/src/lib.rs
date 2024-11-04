@@ -5,11 +5,13 @@ pub mod app;
 pub mod file;
 pub mod input;
 pub mod opengl;
+pub mod runner;
 
 //////////////////////////////////////////////////
 // OpenGL binding
 
 pub mod gl {
+    #![allow(clippy::all)]
     include!(concat!(env!("OUT_DIR"), "/gl_bindings.rs"));
 }
 
@@ -31,8 +33,11 @@ pub mod prelude {
 use std::rc::Rc;
 use std::time::Instant;
 
-use raw_window_handle::HasRawDisplayHandle;
+use glutin::config::ConfigTemplateBuilder;
+use glutin_winit::DisplayBuilder;
+use raw_window_handle::{HasDisplayHandle, HasRawDisplayHandle};
 
+use runner::Runner;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder};
 
@@ -42,6 +47,7 @@ use once_cell::sync::OnceCell;
 use winit::platform::android::activity::AndroidApp;
 #[cfg(target_os = "android")]
 use winit::platform::android::EventLoopBuilderExtAndroid;
+use winit::window::Window;
 
 use crate::app::App;
 use crate::input::{CursorEvent, InputEvent, MouseEvent};
@@ -58,27 +64,6 @@ pub type Gl = Rc<gl::Gles2>;
 pub static ANDROID_APP: OnceCell<AndroidApp> = OnceCell::new();
 
 //////////////////////////////////////////////////
-// Traits
-
-pub trait Runner: Default {
-    fn init(&mut self);
-
-    fn cleanup(&mut self);
-
-    fn input(&mut self, input_events: &[InputEvent]);
-
-    fn update(&mut self, elapsed_time: f32);
-
-    fn render(&mut self, gl: &Gl);
-
-    fn create_device(&mut self, gl: &Gl);
-
-    fn destroy_device(&mut self, gl: &Gl);
-
-    fn resize_device(&mut self, gl: &Gl, width: u32, height: u32);
-}
-
-//////////////////////////////////////////////////
 // Game loop
 
 pub struct GameLoop {}
@@ -87,7 +72,7 @@ pub struct GameLoop {}
 impl GameLoop {
     pub fn start<R: Runner + 'static>(app: AndroidApp, runner: R) {
         ANDROID_APP.set(app.clone()).unwrap();
-        let event_loop = EventLoopBuilder::new().with_android_app(app).build();
+        let event_loop = EventLoop::builder().with_android_app(app).build().unwrap();
         GameLoop::run(event_loop, runner);
     }
 
@@ -100,7 +85,7 @@ impl GameLoop {
 #[cfg(not(target_os = "android"))]
 impl GameLoop {
     pub fn start<R: Runner + 'static>(runner: R) {
-        let event_loop = EventLoopBuilder::new().build();
+        let event_loop = EventLoop::builder().build().unwrap();
         GameLoop::run(event_loop, runner);
     }
 
@@ -114,8 +99,13 @@ impl GameLoop {
         log::trace!("Initializing application...");
 
         // init application
-        let raw_display = event_loop.raw_display_handle();
-        let mut app = App::new(raw_display);
+        let template = glutin::config::ConfigTemplateBuilder::new().with_alpha_size(8).with_transparency(cfg!(cgl_backend));
+        let window = winit::window::Window::default_attributes()
+            .with_transparent(true)
+            .with_title("Glutin triangle gradient example (press Escape to exit)");
+        let display_builder = glutin_winit::DisplayBuilder::new().with_window_attributes(Some(window));
+
+        let mut app = App::new(template, display_builder);
 
         // call init callback
         runner.init();
@@ -127,6 +117,7 @@ impl GameLoop {
         let mut time = Instant::now();
 
         log::trace!("Running mainloop...");
+        event_loop.run_app(&mut app);
         event_loop.run(move |event, event_loop, control_flow| {
             log::trace!("Received Winit event: {event:?}");
 
@@ -205,6 +196,62 @@ impl GameLoop {
                 _ => {}
             }
         });
+    }
+}
+
+pub struct AppHandler {
+    app: App,
+}
+
+impl AppHandler {
+    pub fn new(app: App) -> Self {
+        AppHandler { app }
+    }
+}
+
+impl ApplicationHandler for AppHandler {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        self.resume(event_loop);
+    }
+
+    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+        let _ = event_loop;
+        self.suspend();
+    }
+
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: winit::window::WindowId, event: WindowEvent) {
+        match event {
+            WindowEvent::Resized(size) if size.width != 0 && size.height != 0 => {
+                self.resize(size);
+
+                // TODO: RESIZE
+            }
+            WindowEvent::CloseRequested
+            | WindowEvent::KeyboardInput {
+                event: KeyEvent {
+                    logical_key: Key::Named(NamedKey::Escape),
+                    ..
+                },
+                ..
+            } => event_loop.exit(),
+            _ => (),
+        }
+    }
+
+    fn exiting(&mut self, event_loop: &ActiveEventLoop) {
+        let _ = event_loop;
+
+        // CLEAN UP
+
+        self.exit();
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let _ = event_loop;
+
+        // DRAW
+
+        self.swap_buffers();
     }
 }
 
