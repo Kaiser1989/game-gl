@@ -21,7 +21,11 @@ game-gl = { path = "../game_gl" }
 log = "0.4.11"
 
 [package.metadata.android]
-build_targets = ["aarch64-linux-android", "x86_64-linux-android"]
+build_targets = [
+    "aarch64-linux-android",
+    "i686-linux-android",
+    "x86_64-linux-android",
+]
 opengles_version_major = 3
 opengles_version_minor = 2
 assets = "assets"

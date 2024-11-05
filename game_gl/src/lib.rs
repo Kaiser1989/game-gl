@@ -184,13 +184,14 @@ impl<L: GameLoop> Game<L> {
         // init game time
         self.game_time = Instant::now();
 
-        log::info!("Running mainloop...");
+        log::info!("Running game loop...");
         event_loop.run_app(self).unwrap();
     }
 }
 
 impl<L: GameLoop> ApplicationHandler for Game<L> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        log::info!("Resuming game loop ...");
         if let Some(app) = self.app.as_mut() {
             app.resume(event_loop);
             self.game_loop.create_device(&mut self.game_context, app.renderer());
@@ -198,6 +199,7 @@ impl<L: GameLoop> ApplicationHandler for Game<L> {
     }
 
     fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+        log::info!("Suspending fame loop ...");
         let _ = event_loop;
 
         if let Some(app) = self.app.as_mut() {
@@ -210,14 +212,18 @@ impl<L: GameLoop> ApplicationHandler for Game<L> {
         match event {
             WindowEvent::RedrawRequested => {
                 if let Some(app) = self.app.as_mut() {
-                    self.game_loop.render(&mut self.game_context, app.renderer());
-                    app.swap_buffers();
+                    if app.has_surface_and_context() {
+                        self.game_loop.render(&mut self.game_context, app.renderer());
+                        app.swap_buffers();
+                    }
                 }
             }
             WindowEvent::Resized(size) if size.width != 0 && size.height != 0 => {
                 if let Some(app) = self.app.as_mut() {
-                    app.resize(size);
-                    self.game_loop.resize_device(&mut self.game_context, app.renderer(), size.width, size.height);
+                    if app.has_surface_and_context() {
+                        app.resize(size);
+                        self.game_loop.resize_device(&mut self.game_context, app.renderer(), size.width, size.height);
+                    }
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
