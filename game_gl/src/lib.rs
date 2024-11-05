@@ -137,8 +137,8 @@ impl<L: GameLoop> Game<L> {
         }
     }
 
-    pub fn with_logging(self) -> Self {
-        android_logger::init_once(android_logger::Config::default().with_max_level(LevelFilter::Debug));
+    pub fn with_logging(self, level_filter: LevelFilter) -> Self {
+        android_logger::init_once(android_logger::Config::default().with_max_level(level_filter));
         self
     }
 }
@@ -155,9 +155,9 @@ impl<L: GameLoop> Game<L> {
         }
     }
 
-    pub fn with_logging(self) -> Self {
+    pub fn with_logging(self, level_filter: LevelFilter) -> Self {
         env_logger::builder()
-            .filter_level(LevelFilter::Debug) // Default Log Level
+            .filter_level(level_filter) // Default Log Level
             .parse_default_env()
             .init();
         self

@@ -14,12 +14,14 @@ use crate::game_loop::ExampleGameLoop;
 #[no_mangle]
 fn android_main(app: AndroidApp) {
     // start game loop
-    Game::new(app, ExampleGameLoop::default()).with_logging().init();
+
+    use log::LevelFilter;
+    Game::new(app, ExampleGameLoop::default()).with_logging(log::LevelFilter::Debug).init();
 }
 
 // declared as pub to avoid dead_code warnings from cdylib target build
 #[cfg(not(target_os = "android"))]
 pub fn main() {
     // start game loop
-    Game::new(ExampleGameLoop::default()).with_logging().init();
+    Game::new(ExampleGameLoop::default()).with_logging(log::LevelFilter::Debug).init();
 }
