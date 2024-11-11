@@ -199,7 +199,7 @@ impl<L: GameLoop> ApplicationHandler for Game<L> {
     }
 
     fn suspended(&mut self, event_loop: &ActiveEventLoop) {
-        log::info!("Suspending fame loop ...");
+        log::info!("Suspending game loop ...");
         let _ = event_loop;
 
         if let Some(app) = self.app.as_mut() {
