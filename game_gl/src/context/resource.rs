@@ -11,5 +11,5 @@ pub struct RawResourceContext {}
 // Implementation
 
 impl RawResourceContext {
-    pub(crate) fn init(&mut self) {}
+    //pub(crate) fn init(&mut self) {}
 }

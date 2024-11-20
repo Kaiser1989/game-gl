@@ -3,6 +3,7 @@
 
 use std::mem::size_of;
 
+use game_gl::io::{InputEvent, Key, KeyState, KeyboardEvent};
 use game_gl::opengl::{GlIndexBuffer, GlShader, GlTexture, GlUniformBuffer, GlVertexArrayObject, GlVertexBuffer};
 use game_gl::prelude::*;
 
@@ -47,6 +48,12 @@ void main() {
 
 #[derive(Debug, Default)]
 pub struct ExampleGameLoop {
+    ctx: Option<GameContext>,
+    graphics: Graphics,
+}
+
+#[derive(Debug, Default)]
+pub struct Graphics {
     vao: GlVertexArrayObject,
     vbo: GlVertexBuffer<[f32; 4]>,
     ibo: GlIndexBuffer,
@@ -67,19 +74,21 @@ impl GameLoop for ExampleGameLoop {
         "Test Example"
     }
 
-    fn init(&mut self, _ctx: &mut GameContext) {
+    fn init(&mut self, ctx: GameContext) {
         log::debug!("init");
+        self.ctx = Some(ctx);
     }
 
-    fn cleanup(&mut self, _ctx: &mut GameContext) {
+    fn cleanup(&mut self) {
         log::debug!("cleanup");
+        self.ctx = None;
     }
 
-    fn update(&mut self, _ctx: &mut GameContext, _elapsed_time: f32) {
+    fn update(&mut self, _elapsed_time: f32) {
         //log::debug!("update");
     }
 
-    fn input(&mut self, ctx: &mut GameContext, input_events: &[InputEvent]) {
+    fn input(&mut self, input_events: &[InputEvent]) {
         input_events.iter().for_each(|input_event| match input_event {
             InputEvent::Cursor(event) => {
                 log::debug!("{:?}", event);
@@ -92,90 +101,98 @@ impl GameLoop for ExampleGameLoop {
             }
             InputEvent::Keyboard(KeyboardEvent { state, key }) => match (state, key) {
                 (KeyState::Released, Key::Escape) => {
-                    ctx.exit();
+                    if let Some(ctx) = self.ctx.as_ref() {
+                        ctx.write(|ctx| ctx.exit());
+                    }
                 }
                 _ => {}
             },
         });
     }
 
-    fn render(&mut self, _ctx: &mut GameContext, gl: &Gl) {
+    fn render(&mut self, gl: &Gl) {
         //log::debug!("render");
         unsafe {
             gl.ClearColor(1.0, 0.0, 0.0, 1.0);
             gl.ClearDepthf(1.0);
             gl.Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-            self.vao.bind();
-            self.ibo.bind();
+            let fx = &mut self.graphics;
+            fx.vao.bind();
+            fx.ibo.bind();
 
-            self.texture.bind(1);
-            self.ubo.bind(1);
+            fx.texture.bind(1);
+            fx.ubo.bind(1);
 
-            self.shader.bind();
-            self.shader.link_texture(1, "t_Sampler");
-            self.shader.link_uniform(1, "Settings");
+            fx.shader.bind();
+            fx.shader.link_texture(1, "t_Sampler");
+            fx.shader.link_uniform(1, "Settings");
 
-            gl.Viewport(0, 0, self.resolution.0, self.resolution.1);
+            gl.Viewport(0, 0, fx.resolution.0, fx.resolution.1);
             // gl.Disable(gl::CULL_FACE);
             // gl.Disable(gl::DEPTH_TEST);
             // gl.Enable(gl::DEPTH_TEST);
             // gl.DepthMask(gl::TRUE);
             // gl.DepthFunc(gl::LESS);
 
-            self.shader.draw_elements(gl::TRIANGLE_STRIP, self.ibo.count());
+            fx.shader.draw_elements(gl::TRIANGLE_STRIP, fx.ibo.count());
 
-            self.shader.unbind();
+            fx.shader.unbind();
 
-            self.ubo.unbind();
-            self.texture.unbind();
+            fx.ubo.unbind();
+            fx.texture.unbind();
 
-            self.ibo.unbind();
-            self.vao.unbind();
+            fx.ibo.unbind();
+            fx.vao.unbind();
         }
     }
 
-    fn create_device(&mut self, ctx: &mut GameContext, gl: &Gl) {
+    fn create_device(&mut self, gl: &Gl) {
         log::debug!("create_device");
 
         // create resources
-        self.vao = GlVertexArrayObject::new(gl);
+        let fx = &mut self.graphics;
+        fx.vao = GlVertexArrayObject::new(gl);
 
-        self.vbo = GlVertexBuffer::new(gl, gl::STATIC_DRAW, &[[0.0; 4]; 4]);
-        self.vbo.update(&[[-0.5, -0.5, 0.0, 1.0], [-0.5, 0.5, 0.0, 0.0], [0.5, -0.5, 1.0, 1.0], [0.5, 0.5, 1.0, 0.0]]);
+        fx.vbo = GlVertexBuffer::new(gl, gl::STATIC_DRAW, &[[0.0; 4]; 4]);
+        fx.vbo.update(&[[-0.5, -0.5, 0.0, 1.0], [-0.5, 0.5, 0.0, 0.0], [0.5, -0.5, 1.0, 1.0], [0.5, 0.5, 1.0, 0.0]]);
 
-        self.ibo = GlIndexBuffer::new(gl, gl::STATIC_DRAW, &[0; 4]);
-        self.ibo.update(&[0, 1, 2, 3]);
+        fx.ibo = GlIndexBuffer::new(gl, gl::STATIC_DRAW, &[0; 4]);
+        fx.ibo.update(&[0, 1, 2, 3]);
 
-        self.ubo = GlUniformBuffer::new(gl, gl::DYNAMIC_DRAW, &(0.0, 0.0, 0.0, 0.0));
-        self.ubo.update(&(0.5, 0.9, 0.9, 1.0));
+        fx.ubo = GlUniformBuffer::new(gl, gl::DYNAMIC_DRAW, &(0.0, 0.0, 0.0, 0.0));
+        fx.ubo.update(&(0.5, 0.9, 0.9, 1.0));
 
-        let buffer = ctx.files().load_bytes("lena.png").unwrap();
-        let image = image::load_from_memory(&buffer).unwrap().to_rgba8();
-        self.texture = GlTexture::new(gl, &[image]);
+        if let Some(ctx) = self.ctx.as_ref() {
+            let files = ctx.read(|ctx| ctx.files());
+            let buffer = files.load_bytes("lena.png").unwrap();
+            let image = image::load_from_memory(&buffer).unwrap().to_rgba8();
+            fx.texture = GlTexture::new(gl, &[image]);
+        }
 
-        self.shader = GlShader::new(gl, VS, FS);
+        fx.shader = GlShader::new(gl, VS, FS);
 
         // bind buffers to vao
-        self.vao.bind();
-        self.vao.bind_attrib(&self.vbo, 0, 2, gl::FLOAT, gl::FALSE, 0, 4 * size_of::<f32>(), 0);
-        self.vao.bind_attrib(&self.vbo, 1, 2, gl::FLOAT, gl::FALSE, 2 * size_of::<f32>(), 4 * size_of::<f32>(), 0);
-        self.vao.unbind();
+        fx.vao.bind();
+        fx.vao.bind_attrib(&fx.vbo, 0, 2, gl::FLOAT, gl::FALSE, 0, 4 * size_of::<f32>(), 0);
+        fx.vao.bind_attrib(&fx.vbo, 1, 2, gl::FLOAT, gl::FALSE, 2 * size_of::<f32>(), 4 * size_of::<f32>(), 0);
+        fx.vao.unbind();
     }
 
-    fn destroy_device(&mut self, _ctx: &mut GameContext, _gl: &Gl) {
+    fn destroy_device(&mut self, _gl: &Gl) {
         log::debug!("destroy_device");
 
-        self.vao.release();
-        self.vbo.release();
-        self.ibo.release();
-        self.ubo.release();
-        self.texture.release();
-        self.shader.release();
+        let fx = &mut self.graphics;
+        fx.vao.release();
+        fx.vbo.release();
+        fx.ibo.release();
+        fx.ubo.release();
+        fx.texture.release();
+        fx.shader.release();
     }
 
-    fn resize_device(&mut self, _ctx: &mut GameContext, _gl: &Gl, width: u32, height: u32) {
+    fn resize_device(&mut self, _gl: &Gl, width: u32, height: u32) {
         log::debug!("resize_device ({} x {})", width, height);
-        self.resolution = (width as GLsizei, height as GLsizei);
+        self.graphics.resolution = (width as GLsizei, height as GLsizei);
     }
 }

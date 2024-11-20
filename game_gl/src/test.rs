@@ -40,6 +40,7 @@ impl GameApplication for TestApplicaton {
     }
 }
 
+#[allow(dead_code)]
 fn main() {
     TestApplicaton::loop_forever();
 }

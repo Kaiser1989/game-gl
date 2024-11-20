@@ -35,7 +35,7 @@ impl Files {
 #[cfg(not(target_os = "android"))]
 impl Files {
     pub fn new() -> Self {
-        Files {}
+        Self {}
     }
 
     pub fn load_bytes(&self, filename: &str) -> Option<Vec<u8>> {

@@ -5,12 +5,12 @@ authors = ["Philipp Kaiser"]
 edition = "2021"
 
 [lib]
-#name = "main"
+path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 [[bin]]
-name = "game-gl-example"
-path = "src/lib.rs"
+name = "game-gl-example-bin"
+path = "src/main.rs"
 required-features = ["desktop"]
 
 [features]

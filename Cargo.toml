@@ -1,8 +1,6 @@
 [workspace]
-members = [
-    "game_gl",
-    "game_gl_example",
-]
+members = ["game_gl", "game_gl_example"]
+resolver = "2"
 
 [profile.dev]
 debug = true

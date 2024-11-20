@@ -14,9 +14,10 @@ pub mod test;
 // Prelude
 
 pub mod prelude {
-    pub use crate::context::GameContext;
+    pub use crate::context::{ContextExt, GameContext};
     pub use crate::game_loop::{GameLoop, GameLoopRunner};
-    pub use crate::opengl::{gl, gl::types::*, Gl};
+    pub use crate::opengl::{gl, gl::types::*, Gl, GlResource};
+    pub use image;
     #[cfg(target_os = "android")]
     pub use winit::platform::android::activity::AndroidApp;
 }

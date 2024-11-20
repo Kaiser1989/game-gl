@@ -3,6 +3,8 @@
 
 use std::sync::{Arc, RwLock};
 
+use crate::io::Files;
+
 //////////////////////////////////////////////////
 // Definition
 
@@ -31,6 +33,10 @@ impl RawGameContext {
     #[cfg(target_os = "android")]
     pub fn android_app() -> &AndroidApp {
         self.android_app.as_ref().expect("Android app is not initialized")
+    }
+
+    pub fn files(&self) -> Files {
+        Files::new()
     }
 
     pub fn exit(&mut self) {
