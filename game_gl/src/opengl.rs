@@ -1,13 +1,23 @@
 //////////////////////////////////////////////////
+// OpenGL module
+
+pub mod gl {
+    #![allow(clippy::all)]
+    include!(concat!(env!("OUT_DIR"), "/gl_bindings.rs"));
+}
+
+//////////////////////////////////////////////////
 // Using
 
+use gl::types::*;
 use image;
 use std::ffi::CStr;
 use std::mem::size_of;
 
-use crate::gl;
-use crate::gl::types::*;
-use crate::Gl;
+//////////////////////////////////////////////////
+// Types
+
+pub type Gl = gl::Gles2;
 
 //////////////////////////////////////////////////
 // Resources
@@ -533,6 +543,15 @@ impl GlShader {
             gl.DrawElementsInstanced(mode, index_count as GLsizei, gl::UNSIGNED_INT, std::ptr::null::<()>() as *const _, instance_count as GLsizei);
             check_error(gl, "Failed to draw");
         }
+    }
+}
+
+//////////////////////////////////////////////////
+// GLes2 Debug
+
+impl std::fmt::Debug for gl::Gles2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Gles2").finish()
     }
 }
 

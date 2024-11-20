@@ -3,8 +3,7 @@
 
 use std::mem::size_of;
 
-use game_gl::input::*;
-use game_gl::opengl::*;
+use game_gl::opengl::{GlIndexBuffer, GlShader, GlTexture, GlUniformBuffer, GlVertexArrayObject, GlVertexBuffer};
 use game_gl::prelude::*;
 
 //////////////////////////////////////////////////
